@@ -1,0 +1,78 @@
+<TITLE>Chipmunk Basic Readme</TITLE>
+Chipmunk Basic is an old-fashioned Basic Interpreter
+
+Chipmunk Basic 3.6.7 is free for educational and non-commercial
+distribution and use (but only for those who don't believe that using
+the BASIC programming language causes brain damage. :-)
+
+Chipmunk Basic comes with limited documentation and a contributed nroff
+man page; but the language is mostly compatible with the many books on
+programming in BASIC that were circa 1978 thru 1990.  Line numbers are
+required for program entry via the console, but line numbers are not
+required on Basic programs loaded from text files.
+
+Release notes:
+Version 3.6.7(b5): 
+	fixed some graphics and numeric print bugs
+Version 3.6.7(b4): 
+	fixed field$() bug, 64-bit compile 
+Version 3.6.6(b0): 
+        fixed a gosub error message
+        fixed some graphics commands under OS X 10.7
+        fixed some mat assign bugs
+Version 3.6.5(b5):
+        added mat read
+        fixed bug in mat multiply and mat origin
+        fixed bug in format$() with leading zeros
+        fixed bug in exit while statement
+        fixed bugs in empty for and empty edit statements
+        fixed object string bug
+Version 3.6.4(b8):
+	fixed bugs in format$() and string objects
+Version 3.6.4(b7):
+        improvements of and bug fixes to the mat commands
+	added subroutine local command
+Version 3.6.4(b1):
+        added det() function to calculate 2d matrix determinants
+        added fn dot(a,b) to calculate 1d vector dot product
+        allow comments at beginning of if-endif statement blocks
+        allow if-then else syntax without a colon :
+        allow mat inv of larger matrices
+        allow larger bload/bsave file sizes
+        fixed some bugs in format$() and print using
+Version 3.6.3(b7): fixed socket read eof, object print
+Version 3.6.3(b4): fixed exit for, sub return, mat a*b
+Version 3.6.3(b1): added fn fft1 command, fixed rnd() bug
+Version 3.6.3(b0): added sdbm database commands
+Version 3.6.2(b9): fixed del bug, graphics window bug, format$(),
+                   changed random file object byte order to big-endian, 
+                   added fn version$(), enhanced format$() precision
+Version 3.6.2(b5): added system$(), fn version$, open pipe for output,
+	           fixed atn() bug
+Version 3.6.1: changed exponentiation precedence, default mat origin
+               added mat print command
+
+The previous releases added support for exit() status & fn kill() for file
+deletion; also support for fn pid(), fn sysfork(), and for opening unix
+pipes and sockets.  Also included were bug fixes for instr(), val(".."),
+and for a potential buffer overruns.
+
+Please report any bugs that you find to <mailto:rhn@nicholson.com>.
+Information on Chipmunk Basic may also be found on the WWW at:
+
+  <http://www.nicholson.com/rhn/basic/>  
+
+/* Chipmunk Basic is (c) Copyright 1994-2014 Ronald H. Nicholson, Jr.
+ * ALL RIGHTS RESERVED
+ *
+ * Permission to use, copy and distribute this software without fee
+ * for non-commercial or educational purposes is hereby granted, provided
+ * that the above copyright notice appear in all copies and that both
+ * the copyright notice and this permission notice appear in supporting
+ * documentation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY OF ANY KIND; not even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR ANY PARTICULAR PURPOSE.
+ */
+

@@ -1,0 +1,1395 @@
+.\" Copyright (c) 1991, 1992, 1993, 1994 Free Software Foundation    -*-Text-*-
+.\" See section COPYING for conditions for redistribution
+.\"
+.\" Set up \*(lq, \*(rq if -man hasn't already set it up.
+.if @@\*(lq@ \{\
+.	ds lq "
+.	if t .ds lq ``
+.	if !@@\(lq@ .ds lq "\(lq
+.\}
+.if @@\*(rq@ \{\
+.	ds rq "
+.	if t .ds rq ''
+.	if !@@\(rq@ .ds rq "\(rq
+.\}
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.de Sp
+.if n .sp
+.if t .sp 0.4
+..
+.Id $Id: gcc.1,v 1.4 2002/01/28 23:19:12 pesch Exp $
+.TH BASIC 1 "\*(Dt" "chipmunk-basic" "chipmunk-basic"
+.SH NAME
+.B basic
+Chipmunk BASIC - 'BASIC' language interpreter
+.SH SYNOPSIS    ( UNIX )
+.B basic 
+.RI "[ " filename " ]"
+
+.SH DESCRIPTION
+
+Chipmunk basic is an interpreter for the BASIC programming
+language.
+
+If a filename parameter is given on the command line,
+then the named program file is loaded into memory and run.
+
+Basic commands and statements can be entered and interpreted
+in immediate mode or executed as program statements when the
+Basic program is run.  A built-in line number based editor
+allows program input from the console keyboard; but Basic
+programs do not require line numbers when run from files.
+See below for the commands, statements and functions that
+the Basic interpreter recognizes.
+
+.SH FLAGS
+
+none
+
+.SH COMMANDS
+
+Standard mumbleSoft-like Basic Commands:
+
+.TP
+.B load STRINGEXPR
+
+Load a program into memory from the named file. The
+program previously in memory is erased.  All files are
+closed and all variables are cleared.  Lines beginning
+with the '#' character will be treated as comments. 
+All other lines in the file must begin with a line
+number.  Duplicate line numbers are not allowed.
+.PP
+.TP
+.B save STRINGEXPR
+
+Save the current program to the named file.
+
+.TP
+.B new
+
+Erase the program in memory.  All files are closed and
+all variables are cleared.
+
+.TP
+.B clear
+
+All  variables are cleared.  All arrays and string
+variables are deallocated.
+
+.TP
+.B run { LINENUM }
+.TP
+.B run { STRINGEXPR { , LINENUM } }
+
+Begin execution of the program at the first line, or at
+the specified line.  All variables are cleared.  If a
+STRINGEXPR is given then the BASIC program with that
+name file is loaded into memory first.  Program lines
+are executed in line number order.
+
+.TP
+.B cont
+  
+CONTinue execution of the program on the next statement
+after the statement on which the program stopped
+execution due to a STOP command or an error.  See BUGS
+section.
+
+.TP
+.B LINENUM { TEXT }
+
+Enters a program line.  If a program line with
+line number LINENUM exists, then it is replaced.
+If no TEXT is given, the the program line with
+line number LINENUM is deleted.
+
+.TP
+.B list
+
+List the whole program.
+Line numbers above 999999999 will not list.
+
+.TP
+.B list 1-3
+List lines 1 to 2
+
+.TP
+.B list -2
+List lines up to 1
+
+.TP
+.B list 1
+List line 1
+
+.TP
+.B list 2-
+List lines from 2 on
+
+.TP
+.B merge STRINGEXPR
+
+Loads a program into memory.  The previous program
+remains in memory; variables are not cleared.  If a
+line exists in both programs, the new merged line
+overwrites the old one.
+
+.TP
+.B renum STRINGEXPR VAL { , VAL { , VAL { , VAL} } }
+
+Renumber program lines.  By default, the new sequence is
+10,20,30,... The first argument is a new initial line
+number; the second argument is the increment between
+line numbers. The third and fourth arguments, if
+present, specify a limiting range of old line numbers
+to renumber.  RENUM can be used to move non-overlapping
+blocks of code.
+ 
+.TP
+.B edit LINENUM
+
+Brings up a very Old-style line editor.
+
+Edit a single line.  Enter return to finish.  If the
+exit from edit mode is via a cntrl-c or 'q', then do
+not change the line.
+        i       insert till ESC
+        x       delete one char
+        A       append to end of line
+
+.TP
+.B del LINENUM [ - LINENUM ]
+
+Delete a line or specified range of lines. If not found
+then no lines will be deleted.
+
+.TP
+.B exit
+.TP
+.B exit ( VAL )
+.TP
+.B bye
+.TP
+.B quit
+ 
+Terminates the basic interpreter, ending program
+execution and closing all files.  Optionally return
+exit status to OS shell.
+
+.PP
+.SH STATEMENTS
+.PP
+
+{ let } VAR = EXPR
+
+Assign a value to a variable.  Variable names can be up
+to 31 significant characters, consisting of letters,
+digits, underscores, and an ending dollar sign.
+Variable names are case insensitive.  Variables can
+hold real numbers (IEEE double) or strings of up to 254
+characters.  If the variable name ends with a "$" it
+holds strings, otherwise it holds numbers.  If a
+statement starts with a variable name then an implied
+LET is assumed.
+
+.TP
+.B print  VAL | STRINGVAL { [ , | ; ] VAL ... } { ; }
+.TP
+.B ?      VAL | STRINGVAL { [ , | ; ] VAL ... } { ; }
+.TP
+.B print # FNUM, VAL ...
+
+This command will print its parameters tab delimited.
+If a semi-colon is used between parameters then no tab
+is inserted between the parameters.  The print
+output is terminated with a carriage return unless the
+parameter list ends with a semi-colon.  If a file
+descriptor is given then output is redirected to the
+given file.  If a
+
+        tab(VAL);
+        
+is found in a print statement, then print output will
+skip to the horizontal position specified by VAL.
+
+.TP
+.B print { # FNUM, } using STRINGVAL ; VAR { [ , | ; ] VAR ... }
+
+Prints formatted numbers.  Legal characters for the
+format string STRINGVAL are: + * $ # . E+ and trailing
+spaces.
+
+Examples:
+        print using "**$###.##"; 1.23  :' ****$1.23
+        print using "###.##"; 2.12345  :'   2.12
+        print using "#.##E+##"; 2345.6 :'   2.35E+03
+        
+.TP
+.B input  STRINGVAR | VAR  { , VAR }
+.TP
+.B input  "prompt"; { STRINGVAR | VAR  { , VAR } }
+.TP
+.B input  { # FNUM , } { STRINGVAR | VAR { , VAR } }
+
+Input from the console or from the file specified by
+FNUM. If the input is from the console then a prompt
+string can optionally be printed.
+
+*** NOTE ***
+
+All input to string variables is "line input"; a whole
+input line will be read into one string variable.  The
+number of comma seperated numeric values in the input
+data must be less than or equal to the number of
+numeric variables in the INPUT statement.  This INPUT
+usage is different from other versions Basic.
+
+.TP
+.B get STRINGVAR
+
+Gets one character from the console keyboard.  Blocking.
+
+.TP
+.B fputbyte VAL, # FNUM
+
+Writes one byte to the file specified by FNUM.
+
+.TP
+.B fseek # FNUM, VAL
+
+Seeks to file position.
+
+.TP
+.B get # FNUM, VAL, TYPED-VAR
+
+Reads one record from a random access file into VAR.
+
+.TP
+.B put # FNUM, VAL, TYPED-VAR
+
+Write one record to a random access file from VAR.
+
+.TP
+.B cls
+Clear the terminals screen.  Leaves the cursor in the
+upper left corner.  For Applesoft BASIC fans, the
+"home" command will also do this.
+
+.TP
+.B end
+
+Terminates program execution and returns to the command
+prompt.  Not required.
+
+.TP
+.B stop
+
+Stops the execution of the program and returns to
+the command prompt.  Prints a "Break..." message.
+
+.TP
+.B if EXPR then STATEMENT { : STATEMENT } { : else STATEMENT }
+.TP
+.B if EXPR then LINENUM
+.TP
+.B if EXPR
+
+The IF statement.  If the condition is true then the
+STATEMENTS after the THEN are executed and the
+statements after the ELSE are skipped.  If the
+condition is false then the statements after the "else"
+are executed instead.  If the item after "then" is a
+line number then a goto is executed.
+
+If the condition is true and there is no THEN on the
+same line, statements are executed until a line
+with an ENDIF is found.  (block IF() ... ENDIF)
+
+.TP
+.B for VAR = EXPR to EXPR { step EXPR }
+
+Beginning of a FOR-NEXT loop.  It takes a starting
+value, a limit and an optional step argument.  If the
+step value is negative, the variable counts down.  The
+body of the loop is not executed if the end condition
+is true initially.
+
+Example:
+        for i=1 to 10 : print i, : next i
+        rem prints the numbers from 1 through 10
+
+.TP
+.B next { VAR }
+
+End of a FOR-NEXT loop.  If the termination conditions
+are met then execution falls through to the following
+statement, otherwise execution returns to the statement
+following the FOR statement with the corresponding
+index variable. If there no index variable parameter,
+the innermost FOR loop is used.
+
+.TP
+.B exit for
+
+Exits the current FOR-NEXT loop.
+
+.TP
+.B while { EXPR }
+
+Start of a WHILE loop. The loop is repeated until EXPR
+is false. If EXPR is false at loop entry, then the loop
+is not executed . A WHILE loop must be terminated by a
+balancing WEND statement.
+
+.TP
+.B wend { EXPR }
+
+Terminating statement of a WHILE loop.  If EXPR is true
+then exit the loop.  Only one WEND is allowed for each
+WHILE.  A WHILE-WEND loop without a condition will loop
+forever.
+
+.TP
+.B exit while
+
+Exits the current WHILE-WEND loop.
+
+.TP
+.B gosub LINENUM
+
+Transfer command to a line number. Save return address
+so that the program can resume execution at the
+statement after the "gosub" command.  The recursion
+depth is limited only by available memory.
+
+.TP
+.B return
+
+Returns from the most recently activated subroutine
+call (which must have been called by GOSUB).
+
+.TP
+.B goto LINENUM
+
+This statement will transfer control to the line number
+specified.  If the program is not running, then this
+command will begin execution at the specified line
+without clearing the variables.  An "Undefined line"
+error will occur if LINENUM doesn't exist in the
+program.
+
+.TP
+.B on EXPR   goto  LINENUM { , LINENUM ... }
+.TP
+.B on EXPR   gosub LINENUM { , LINENUM ... }
+This command will execute either a goto or a gosub to
+the specified line number indexed by the value of EXPR.
+If EXPR is larger than the number of LINENUMs, then
+control passes to the next statement.
+
+.TP
+.B on error  goto  LINENUM
+
+If the error form is used, only one linenumber is
+allowed.  LINENUM is the line to which control is
+transferred if an error occurs.  A GOTO or CONT
+statement can be used to resume execution.  An error
+inside a named SUB subroutine cannot be resumed from
+or CONTinued.
+
+.TP
+.B sub NAME ( VAR { , VAR ... } }
+
+Subroutine entry.  May be called by a CALL statement or
+by NAME. A SUB subroutine must be exited by a RETURN or
+END SUB statement.  There should be only one RETURN or
+END SUB statement per SUB definition.  The variables in
+the VAR list become local variables. String and numeric
+arguments are passed by value; array arguments must be
+pre-dimensioned and are passed by reference.
+
+Example:
+        110  x = foo (7, j)  : rem Pass 7 and j by value.
+        ...
+        2000 sub foo (x,y,z) : rem z is a local variable
+        2010   print x       : rem prints 7
+        ...
+        2080   foo = y+1     : rem return value
+        2090 end sub
+
+Subroutine definitions may not be nested.
+.PP
+.TP
+.B select case EXPR
+
+Multi-way branch.  Executes the statements after
+the CASE statement which matches the SELECT CASE
+expression, then skips to the END SELECT statement.
+If there is no match, and a CASE ELSE statement is
+present, then execution defaults to the statements
+following the CASE ELSE.
+
+Example:
+
+        200 select case x
+        210   case 2
+        ...
+        230   case 3, 4
+        ...
+        270   case else
+        ...
+        290 end select
+.PP
+.TP
+.B dim VAR( d { , d { , d } } ) { , VAR( d { , d { , d } } ) }
+
+Dimension an array or list of arrays (string or numeric). 
+A maximum of 4 dimensions can be used. The maximum
+dimension size is limited by available memory. Legal
+array subscripts are from 0 up and including the
+dimension specified; d+1 elements are allocated.  All
+arrays must be dimensioned before use.
+
+Example:
+        10 dim a(10)
+        20 for i=0 to 10
+        30   a(i) = i^2
+        40 next i
+        50 print a(5)
+        60 rem should print 25
+
+.TP
+.B data ITEM { , ITEM }
+
+DATA statements contain the data used in the READ
+statements. Items must be separated by commas.  The
+items may be either numeric or string expressions,
+corresponding to the type of variable being read.
+Reading the wrong kind of object produces a "Type
+mismatch" error.  Strings must be encapsulated with
+quote marks.
+
+.TP
+.B read VAR { , VAR }
+
+Read data from the DATA statements contained in the
+program. List items can be either string or numeric
+variables. Reading past the end the last DATA statement
+generates an error.
+
+.TP
+.B restore { LINENUM }
+
+The RESTORE statement causes the next READ to use the
+first DATA statement in the program.  If a LINENUM is
+given then the DATA statement on or after that
+particular line is used next.
+
+.TP
+.B rem or "`"
+
+A remark or comment statement.  Ignored by the program
+during execution, however a REM statement can be the
+target of a GOTO or GOSUB.
+
+.TP
+.B open STRINGEXPR for { input|output|append } as # FNUM
+
+Open a file. The { input|output|append } parameter
+specifies whether the file is to be read, written or
+appended.  If STRINGEXPR is "stdin" for input or
+"stdout" for output then the console will be used
+instead of a file.  A "file not found" error will
+occur if a non-existant file is specified in an OPEN
+for input statement.  FNUM must be an integer value
+between 0 and 8.
+
+.TP
+.B open STRINGEXPR for random as # FNUM len = VAL
+
+Opens a random access file.  Only GET and PUT statement
+are allowed to read and write random access files.
+
+.TP
+.B open ... else goto LINENUM
+
+See OPEN command.
+LINENUM is the line to which control is transferred if
+an error in opening a file occurs.  The variable ERL is
+set to the line number on which the file open error
+occured.
+
+.TP
+.B close # FNUM
+
+Close a file. Releases the file descriptor and flushes
+out all stored data.
+
+.TP
+.B def fnNAME ( VAR { , VAR } ) = EXPR
+
+Define a user definable function.  Obsolete.
+
+Example:
+        10 def fnplus(x,y) = x+y
+        20 print fnplus(3,5)
+        30 rem - should print 8
+
+.TP
+.B mat ARRAY-VAR = EXPR
+
+Fills a 1 or 2 dimensional array with a constant
+value given by EXPR.
+
+.TP
+.B mat ARRAY-VAR = ARRAY-VAR
+
+Copys a 2 dimensional array.  The dimensions
+must match.
+
+.TP
+.B mat ARRAY-VAR = transpose ARRAY-VAR
+
+Transposes a 2 dimensional array.  The dimensions of
+the first array must correspond to the transpose of
+the dimensions of the second array.
+
+.TP
+.B mat ARRAY-VAR = ARRAY-VAR { + | * } { EXPR | ARRAY-VAR }
+
+Adds or multiplies a 2 dimensional array by either
+an expression or another array.  The dimensions must
+be appropriate for matrix addition or matrix
+multiplication.
+
+.TP
+.B mat origin { 0 | 1 }
+
+Sets the matrix index origin to either 0 or 1 for all
+MAT statements, including fill.  Defaults to 1.
+
+.TP
+.B fn fft1 ( 1, ARRAY_ELEMENT, ARRAY_ELEMENT, SIZE_VAL )
+
+In place 1d Discrete Fourier Transform of real and
+imaginary arrays of at least size SIZE_VAL, starting
+at the referenced array indexes.  SIZE_VAL must be
+a power of 2.  Uses FFT algorithm.
+
+Example:
+        fn fft1 ( 1, x(0), y(0), 256 )
+
+
+.TP
+.B type CLASSNAME
+
+Creates a structure definition type.  Each field
+requires a separate line.  Legal types are string,
+integer, longint and double.  The definition must
+conclude with an END TYPE statement.  Use the
+DIM AS NEW statement to create records containing
+the structure specified by a TYPE statement.
+
+Example:
+        300 type person
+        310   name as string * 32
+        311     rem  31 chars in length
+        320   age as integer
+        312     rem  2 byte integers
+        330   weight as double
+        331     rem  8 byte doubles
+        340 end type
+        400 dim friend1 as new person
+        410 friend1.name = "Mark"
+        420 friend1.age = 13
+        430 print friend1.name, friend1.age
+.PP
+.TP
+.B class CLASSNAME { extends SUPERCLASSNAME }
+
+Creates a class definition.  Class definitions can then
+be used to create objects with member functions (also
+called methods.)  Classes inherit members from
+superclasses (single inheritance.)
+
+Example:
+    CLASS bar
+        y AS integer
+        z AS PRIVATE double   ' private data
+        s AS PUBLIC string    ' public keyword optional
+        SUB blah(v)           ' public member function
+            this.y = v + 7
+        END SUB
+    END CLASS
+
+    DIM b AS NEW bar        ' create object b
+    CALL b.blah(1)          ' send message "blah(1)" to b
+
+CLASS and TYPE definitions are global, and cannot be
+nested inside other class definitions or subroutines.
+
+.TP
+.B dim VAR { ( INT ) } as new CLASSNAME
+
+Create a record (TYPED-VAR) or object using a
+previously defined structure definition type created
+by TYPE...END TYPE or CLASS..END CLASS.  Optionally
+creates an array of records or objects.
+
+.TP
+.B erase VAR
+
+Un-dimensions a dimensioned array.  Frees memory.
+
+.TP
+.B option degrees
+
+Changes the trigonometric functions to take parameters
+and return results in degrees instead of radians.
+
+.TP
+{ let } mid$( STRINGVAR, EXPR1, EXPR2 ) = STRINGEXPR
+
+Replace the sub-string in STRINGVAR, starting at
+character position EXPR1, with character length EXPR2,
+with the (EXPR2 in length) string STRINGEXPR.
+
+.TP
+{ let } field$( STRINGVAR, VAL { ,STRINGVAL } ) = STRINGEXPR
+
+Replace the N-th field of STRINGVAR with STRINGEXPR.
+
+.TP
+.B poke ADDR_EXPR, DATA_EXPR
+
+Poke a byte into a memory location. Unreasonable
+addresses can cause bus or segmentation errors.
+
+.TP
+.B push VAR { , VAR ... }
+
+Pushes one or more expressions or variables onto an
+internal stack.  Expressions can be returned using the
+POP function; variables can be returned by using the
+POP statement.
+
+.TP
+.B pop VAL
+
+POP statement (see also POP function). Pops VAL
+variables off the internal stack, restoring the value
+of those variables to their pushed values.
+
+.TP
+.B exec(STRINGEXPR)
+
+Executes STRINGEXPR as a statement or command. 
+e.g. exec("print " + "x") will print the value of x.
+.PP
+.SH NUMERIC FUNCTIONS
+.PP
+
+.TP
+.B sgn(VAL)
+
+Returns the sign of the parameter value.  Returns 1 if
+the value is greater than zero , zero if equal to zero.
+-1 if negative.
+
+.TP
+.B abs(x)
+
+Returns the absolute value of x.
+
+.TP
+.B int(x)
+
+Returns the integer value of x.  Truncates toward negative infinity.
+The absolute value of x must be less than 2^31-1.
+The usage int(x, 0) truncates towards zero.
+
+.TP
+.B floor(x)
+
+Returns the integer value of x.
+Truncates toward negative infinity.
+
+.TP
+.B sqr(x)
+
+Returns the square root of x.
+
+.TP
+.B log(x)
+
+Returns the natural logarithm of x.
+
+.TP
+.B log10(x)
+
+Returns the logarithm base 10 of x.
+
+.TP
+.B exp(x)
+
+Returns e^x. e=2.7182818...
+
+.TP
+.B sin(x)
+.TP
+.B cos(x)
+.TP
+.B atn(x)
+.TP
+.B atn(x,y)
+
+Trigonometric functions: sin, cosine and arctangent. 
+
+.TP
+.B pi
+
+Returns pi, 3.141592653589793... 
+
+.TP
+.B rnd ( EXPR )
+
+Returns an integer pseudo-random number between 0 and
+int(EXPR)-1 inclusive. If EXPR is 1, then returns a
+rational number between 0 (inclusive) and 1.  If EXPR
+is negative then EXPR seeds the random number generator.
+
+.TP
+.B randomize EXPR
+
+Seeds the random number generator with the integer
+EXPR. The pseudo-random number generator should return
+the same sequence when seeded with the same start
+value.  The actual sequence may be system dependant.
+
+.TP
+.B len( STRINGEXPR )
+
+Returns the length of the string STRINGEXPR.
+
+.TP
+.B len( TYPED-VAR )
+
+Returns the length, in bytes, of a typed record
+(one created by DIM AS).
+
+.TP
+.B val( STRINGEXPR | EXPR )
+
+Value of the expression contained in a STRINGEXPR or
+EXPR.  STRINGEXPR may be a string literal, variable,
+function, or expression.
+
+For example, VAL("1 + sqr(4)") yields 3.
+
+.TP
+.B asc( STRINGEXPR )
+
+Returns the ascii code for the first character of
+STRINGEXPR.  A null string returns zero.
+
+.TP
+.B instr(a$, b$ { , VAL } )
+
+Returns the position of the substring b$ in the
+string a$ or returns a zero if b$ is not a substring.
+VAL is an optional starting position in a$
+
+.TP
+.B ubound( VAR [, EXPR ] )
+
+If VAR is a dimensioned array, returns the maximum
+legal subscript of the first dimension of that array,
+else returns 0.  Use EXPR to return other dimensions.
+
+.TP
+.B isarray( VAR )
+
+If VAR is a dimensioned array, returns the number
+of dimensions, otherwise returns 0.
+
+.TP
+.B fgetbyte( FILENUM )
+
+Reads one byte from the open file specified by FILENUM
+and returns an unsigned numeric value [0..255].
+
+.TP
+.B eof(FILENUM)
+
+Returns true if the the last INPUT statement, INPUT$
+or FGETBYTE function call which referenced the text
+file specified by FILENUM tried to read past the end
+of file. (Note that reading the last line of a file
+will not read past the eof mark.  A subsequent read is
+needed to set the EOF flag to true.  Reading past the
+end-of-file will not report an error.)
+
+.TP
+.B pop
+
+POP function (see also POP statement). Pops one variable
+value off the stack and returns that value (string or
+numeric).
+
+(POP can be used as either a statement (with a
+parameter) or a function (no parameter). Note that the
+POP function, unlike the POP statement, does not
+restore the value of the variable pushed, but only
+returns the pushed value.  This use of the POP
+statement is different from the Applesoft usage.)
+
+.TP
+.B peek( ADDR { , SIZE_VAL } )
+
+Returns the value of the byte in memory at address ADDR.
+If SIZE_VAL is 2 or 4, returns the value of the 16-bit
+or 32-bit word respectively (if correctly aligned).
+If SIZE_VAL is 8, returns the value of the numeric
+variable located at ADDR.  (peek(varptr(x),8) == x)
+
+.TP
+.B varptr( VAR | STRINGVAR )
+
+Returns the memory address of a variable.
+
+.TP
+.B erl
+
+Returns the line number of the last error.  Zero if the
+error was in immediate mode.  The variable errorstatus$
+gives the error type.
+
+.TP
+.B timer
+
+Returns a numeric value of elapsed of seconds from the
+computers internal clock.
+
+.PP
+.SH STRING FUNCTIONS
+.PP
+
+.TP
+.B x$ + y$
+
+String concatenation.
+
+String concatenation (and the MID$, LEN and INSTR
+functions) can handle strings of up to 32766 characters
+in length (if the memory available to the program
+permits).
+
+.TP
+.B chr$(VAL)
+
+Returns the ascii character corresponding to the value
+of VAL.
+
+.TP
+.B str$( VAL { , EXPR } )
+
+Returns a string representation corresponding to VAL.
+If EXPR is present then the string is padded to that
+length.
+
+.TP
+.B format$( VAL , STREXPR )
+
+Returns the string representation of VAL formatted
+according to the format string STREXPR. The format
+string STREXPR uses the same formatting syntax as the
+PRINT USING statement.
+
+.TP
+.B inkey$
+
+Return one character from the keyboard if input is
+available. Returns a zero length string { "" } if no
+keyboard input is available.  Non-blocking.  Can be
+used for keyboard polling.
+
+.TP
+.B input$( EXPR { , FILENUM } )
+
+Returns EXPR characters from file FILENUM. If f is not
+present then get input from the console keyboard.
+
+.TP
+.B mid$( a$, i { , j } )
+
+Returns a substring of a$ starting at the i'th
+positions and j characters in length. If the second
+parameter is not specified then the substring is
+taken from the start position to the end of a$.
+
+.TP
+.B right$(a$, EXPR )
+
+Returns the right EXPR characters of a$.
+
+.TP
+.B left$(a$, EXPR )
+
+Returns the left EXPR characters of a$.
+
+.TP
+.B field$( STRINGVAL, VAL { , STRINGVAL } )
+
+Returns the N-th field of the first string.  If the
+optional string is present then use the first character
+of that string as the field separator.  The default
+separator is a space.  Similar to UNIX 'awk' fields.
+
+e.g.  field$("1 22 333 4", 3)  returns  "333"
+
+If VAL is -1 then returns a string with a length
+equal to the number of seperators in the first string.
+
+.TP
+.B hex$( VAL { , EXPR } )
+.TP
+.B bin$( VAL { , EXPR } )
+
+Returns the hexadecimal or binary string representation
+corresponding to VAL.  If EXPR is present then the
+string is padded with zeros to make it that length.
+
+.TP
+.B lcase$( STRINGVAL )
+
+Returns STRINGVAL in all lower case characters.
+
+.TP
+.B errorstatus$
+
+Returns the error message for the last error.
+.PP
+.SH OPERATORS
+.PP
+
+.TP
+.B Math Operators
+The following math operators  are available:
+        ^       exponentiation
+        *       multiplication
+        /       division
+        mod     remainder
+        +       addition
+        -       subtraction
+
+.TP
+.B Logical Operators
+Any non-zero value is true.
+Logical Operators:
+        not     logical not
+
+.TP
+.B Bitwise Operators
+Bitwise Operators:
+        and     bitwise and
+        or      bitwise or
+        xor     bitwise exclusive-or
+
+.TP
+.B Comparison Operators
+Arithmetic Comparison Operators:
+        <=      less than or equal
+        <>      not equal to
+        >=      greater than or equal
+        =       equal
+        >       greater than
+        <       less than
+
+.TP
+.B x$=y$, x$y$, x$<=y$, x$>=y$, x$<>y$
+
+String comparisons; result is 1 if true, 0 if false.
+
+.TP
+.B Operator Precedence
+Operator Precedence (highest to lowest):
+        ( )
+        functions()
+        ^
+        - {unary_minus}
+        * / mod
+        + -
+        = < > <= >= <>
+        not
+        and
+        or xor
+.PP
+
+.SH UNIX commands:
+.PP
+
+.TP
+.B gotoxy VAL, VAL
+
+Sets the horizontal and vertical location of the text
+output cursor using vt100/xterm control characters.
+(0,0) is the upper left corner.
+
+.TP
+.B open STRINGEXPR for input as # FNUM
+.TP
+.B open STRINGEXPR for output as # FNUM
+
+Where STRINGEXPR start with the string: "pipe:"
+
+Opens an input or output pipe with STRINGEXPR as the 
+process command string.
+
+Example:
+        open "pipe:/bin/ls -l" for input as #1
+.PP
+
+.TP
+.B open STRINGEXPR , INTEXPR for input as # FNUM
+.TP
+.B open STRINGEXPR , INTEXPR for output as # FNUM
+
+Where STRINGEXPR start with the string: "socket:"
+
+Opens a socket with STRINGEXPR as the hostname and INTEXPR as the
+port number.  The input needs to be opened before the output.
+
+Example:
+        open "socket:foo.net",7 for input as #3
+        : rem echo port
+        open "socket:foo.net",7 for output as #4
+        print #4, "hello"
+        input #3, a$
+        close #4 : close #3
+
+.PP
+
+.SH UNIX/linux functions:
+.PP
+
+.TP
+.B #cbas#run_only
+
+When used in a Basic program file, upon load, sets 
+the Chipmunk Basic interpreter to run-only mode,
+interactive mode disabled.  The Stop and End
+commands and the use of Ctrl-C will quit the
+interpreter.
+
+.TP
+.B sys( STRINGVAL )
+
+UNIX system call.  The string parameter is given to
+the shell as a command.  Returns exit status.
+system$() returns first line of stdout.
+
+.TP
+.B fn version$( )
+
+Returns version information string, including endianess.
+
+.TP
+.B fn kill( STRINGVAL )
+
+Removes the file with filename STRINGVAL.  Returns 0
+on success.
+
+.TP
+.B getenv$( STRINGVAL )
+ 
+Returns value for environment name STRINGVAL.
+      
+.TP
+.B argv$
+Returns the UNIX shell command line arguments.
+.PP
+.SH Macintosh commands:
+.PP
+
+*** NOTE ***
+.PP
+
+Many MacOS specific functions and commands are only
+documented in the Chipmunk Basic quick reference file.
+
+.TP
+.B gotoxy VAL, VAL
+
+Set the horizontal and vertical location of the
+text output cursor.  (0,0) is the upper left corner.
+
+.TP
+.B moveto VAL, VAL
+
+Sets the (x,y) location of the graphics pen.
+
+.TP
+.B lineto VAL, VAL
+
+Draws a line from the current pen location to location
+(x,y) in the graphics window.
+
+.TP
+.B window x, y, char_cols, char_lines
+
+Change the text console window position and size.
+
+.TP
+.B morse STRINGVAL { , VAL, VAL, VAL, VAL }
+
+Plays morse code through the speaker.
+The parameters are: dot-speed-wpm, volume{0..100},
+word-speed-wpm, frequency{in Hz or cps}
+
+.TP
+.B sound VAL, VAL, VAL 
+
+The parameters are:
+frequency{in Hz}, seconds_duration, volume{0..100}
+
+.TP
+.B say STRINGVAL
+
+Speaks STRINGVAL if the Speech Manager Extension is
+resident.  Try "say a$,200,46,1" for faster speech.
+
+.TP
+.B open "SFGetFile" for input  as #FNUM
+.TP
+.B open "SFPutFile" for output as #FNUM
+
+Puts up a standard file dialog for the file name.
+
+.TP
+.B files { STRINGVAL }
+
+Displays a listing of files in the named or current
+directory.
+
+.SH Macintosh functions:
+.PP
+
+.TP
+.B fre
+Returns the amount of memory left for program use. 
+
+.TP
+.B date$
+Returns a string corresponding to the current date.
+
+.TP
+.B time$
+Returns a string corresponding to the current time.
+
+.TP
+.B pos(VAL)
+
+Returns the horizontal position of the text cursor.
+If VAL is negative returns the vertical position.
+
+.TP
+.B errorstatus$
+
+Also returns the full path name of the program and
+files opened by SFGetFile and SFPutFile. (Only under System 7
+and also only if the name fits in a string variable)
+
+
+.SH Macintosh menu items:
+.PP
+
+.TP
+.B Open 
+or 
+.B cmd-O
+
+will put up a dialog to allow selection
+of a program file to load.  Basic Program
+file names must end with a ".bas" suffix.
+
+.TP
+.B Copy
+will allow copying picts from the graphics
+window.
+
+.TP .
+Command-period will stop program execution.
+
+.TP
+.B Print
+
+Print graphics window if it's the frontmost
+window. Only the graphics window can be printed.
+.PP
+.SH RESERVED WORDS AND SYMBOLS
+.PP
+
++ - * / ^ mod  and or xor not  > < >= <= <> = ()
+sqr log exp sin cos tan atn  pi
+abs sgn int rnd peek val asc len
+mid$ right$ left$ str$ chr$  lcase$ ucase$
+goto  if then else endif  gosub return
+for to step next  while wend  select case
+rem  let  dim erase  data read restore   field$
+input print open for output append as close# load save
+random lof loc get put   
+inkey$  input$ eof  files  fgetbyte# fseek# fputbyte
+run stop end exit quit cont  renum  new clear
+date$ time$ timer  sound morse say  doevents
+home cls gotoxy htab vtab pos 
+graphics sprite pset moveto lineto window scrn mouse
+varptr peek poke fre push pop  isarray
+sub call usr  def fn
+type class extends  string integer single double
+asin acos sinh cosh tanh log10 floor true false ubound
+eqv imp  static  option degrees radians redim
+msgbox  do loop until break
+method private public local   menu dialog memstat()
+draw play  bload bsave  min max mat
+each  resume  function
+key is each set width swap
+
+
+.SH CONVENTIONS
+.PP
+
+.TP
+.B EXPR            an expression that evaluates to a numeric value.
+.TP
+.B STRINGEXPR      a string expression.
+.TP
+.B VAR             a numeric variable.
+.TP
+.B STRINGVAR       a string variable. Name must end with a "$".
+.TP
+.B INTEGERVAR      a 16-bit variable. Name must end with a "%".
+
+All program lines must begin with a line number.
+Using spaces (indentation) between the line number and
+program statements is legal.  Line numbers can be
+between 1 and 2147483647.  Programs lines must be no
+longer than 254 characters in length.
+
+Subroutine names starting with "fn" are reserved for the
+(obsolete) def fn functions.
+
+Hexadecimal numbers can be entered by preceding them with
+a "0x" as in 0x02ae, or by "&h" as in &h0172.
+
+Multiple statements may be given on one line, separated by
+colons:
+
+10 INPUT X : PRINT X : STOP
+.PP
+.SH DIAGNOSTICS
+
+Some errors can be caught by the user program using the
+"on error goto" command. If no error trapping routine has been
+supplied then program execution is terminated and a message is
+printed with the corresponding line number.
+
+Graphics (MacOS) may require that the preferred memory
+requirements be increased using the Finder "Get Info" dialog
+box.
+.PP
+.SH CHANGES
+
+  v3.6.3b1 - fixed randomize/rnd bug, get bug, added fn fft1
+  v3.6.3b0 - added sdbm database commands
+  v3.6.2b9 - added open pipe for output
+  v3.6.2(b5) - added fn version$(), fn shmem(), system$()
+            - fixed atn()
+  v3.6.1    - changed exponentiation/negation precedence
+            - changed default mat origin
+  v3.6.0    - added atn(x,y), exit() status, fn kill file.
+  v3.5.8b5  - changed int() to round toward negative infinity.
+  
+  v3.5.7b3  - added network socket i/o
+  v3.5.7b2  - fixed rnd() function
+  v3.5.7b1  - fixed a problem with array indexes > 65k
+  v3.5.3    - allow integer (i%) variables as for/next loop indices
+  v3.4.7    - lowered precedence of NOT operator
+            - disabled ON GOTO range checking
+  v3.4.6    - added MAT matrix statements
+  v3.4.0    - OPEN ELSE added
+  v3.3.4    - changed integer conversion to rounding
+            - changed sub return values to: sub_name = x
+            - added reserved words for: true false
+  v3.3.3    - added acos, tanh, log10
+  v3.2.8    - added class definitions
+
+Many others ...
+
+.SH BUGS
+.PP
+
+Many.  Perhaps competitive with Central American rain forests.
+
+FOR/NEXT loops with integer indices require a variable in the
+NEXT statement. Integer arrays can only have a dimension of
+one and will only work in assignment (LET) statements.  All
+arithmetic on integer variables is done using floating point
+arithmetic.  DIM AS DOUBLE and DIM AS INTEGER statements are
+ignored.
+
+Many string functions (except +, MID$, LEN and INSTR) silently
+truncate their results to 254 characters (e.g. without
+warning). All string function may silently truncate strings
+longer than 32766 characters. Any operation on strings longer
+than 254 characters will cause the program to run slower.
+
+Comments starting with ' sometimes can't be used after
+statements that can end with a string parameter. ( : '
+should always work.)
+
+Any variables used as a CLASS, or TYPE, globally overide all
+local variables of the same names.  Local TYPE'd variables
+must be declared globally as TYPE'd variables.  Named SUBroutines
+are slower than GOSUBs. The combined length of a SUBroutine name
+and any local variables declared STATIC must be less than 29
+characters.
+
+Can't CONTinue from an error inside a named SUB subroutine.
+
+The PRINT USING format string doesn't recognize comma's,
+underscores and many other common format characters.
+
+Macintosh screen editing will only recognise the last line
+modified before a RETURN or ENTER key.  The EDIT command and
+Mac screen editing are incompatible.
+
+There are many undocumented graphics and sprite commands
+and keywords in the Macintosh port.  See the accompanying
+README and Chipmunk Basic quick-reference file.
+
+
+.SH DISCLAIMER
+.PP
+
+There is no warranty that this document is accurate.
+
+.SH SEE ALSO
+The Chipmunk Basic Home Page:
+.TP
+  <http://www.nicholson.com/rhn/basic.html >
+
+
+.SH AUTHORS
+
+David Gillespie wrote basic.p 1.0 and the p2c lib.
+Ron Nicholson (rhn@nicholson.com) added file i/o, graphics
+and did the linux, Mac and Mac OS X port. (1990Aug-2005Dec)
+David Forrest (drf5n@virginia.edu) converted man page to nroff (1999 March)
+
+Portions of this document are Copyright (C) 1989 Dave Gillespie.
+Portions of this document are
+Copyright (C)1994,2006 Ronald H. Nicholson, Jr.  All rights reserved.
+"Applesoft" is a trademark of Apple Computer, Inc., etc.
