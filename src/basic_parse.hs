@@ -32,6 +32,7 @@
    40 PRINT A * (B + C)
    50 END                                                             -}
 {----------------------------------------------------------------------}
+{-# LANGUAGE MultiParamTypeClasses #-}
 import System.IO
 import Parselib
 import Data.Char
@@ -43,152 +44,15 @@ import Data.List
 import Data.Array()
 import Data.IORef
 import Control.Monad
-
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Reader
+import Control.Monad.IO.Class
 -- ================================== --
 -- experimenting by Hoss              --
 import qualified Data.Text    as Text
 import qualified Data.Text.IO as Text
+import BasicTypes
 -- =================================== --
-
-data Statement      = FOR Var Expression Expression
-                    | FORSTEP Var Expression Expression Expression
-                    | IF Expression Constant
-                    | INPUT Var
-                    | LET Var Expression
-                    | NEXT Var
-                    | PRINT Expression
-                    | END 
-
-
-
-
--- class Interpreter a b where
---   eval :: a -> b
-
---class EvNumExpr a where
---   eval :: a -> Int
-
--- instance EvNumExpr Expression Int where
---   eval (AddExp e1 e2) = (eval e1) + (eval e2)
---   eval (MultExp e1 e2) = (eval e1) * (eval e2)
---   eval (ConstExp e) = num e
---   eval (Varabile v) = do {ref <- get_Ref (character v); value <- readIORef ref; return }
-
-
-
-data Expression     = AddExp Expression Expression 
-                    | MultExp Expression Expression
---                    | EqualsExp Expression Expression
-                    | ConstExp {cons::Constant}
-                    | Variable {var::Var}
-
-data CompareExpr    = EqualsExpr Expression Expression
-
-
-data Var            = Var {character::Char}
-
-data Constant       = NumConst {num::Int}
-                    | StringConst {str::String}
-
-data NegateExp      = Neg PowerExp
-                    | Pexp PowerExp -- fix this!
-
-data PowerExp      = Pow Value PowerExp
-                    | PowValue Value
-
-data Value          = ValueParens Expression
-                    | ValueVar Var
-                    | ValueFxn Function
-                    | ValueConst Constant
-
-data Function       = INT Expression
-                    | RND Expression
-
-data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String} 
-                    | Parsed_line {line_num:: Int, sttment:: Statement} 
-
-data Interpereter = Program {s_table :: Array Char (IO (IORef Constant)), program_counter:: Int}
--------------------------------------------------------------------------------
--- state Monad implementation. May change later can not load in State Monad  --
--------------------------------------------------------------------------------
-
-
-newtype State s a = State {runState :: s -> (a, s)}
-
-instance Functor (State s) where
-  fmap = liftM
-
-instance Applicative (State s) where
-  pure = return
-  (<*>) = ap
-
-instance Monad (State s) where
-  return a = State $ \s -> (a, s)
-  m >>= f = State $ \s->
-    let (a', s') = runState m s
-    in runState (f a') s'
-
-get           = State $ \s -> (s, s)
-put s         = State $ \_ -> ((), s)
-evalState x s = fst $ runState x s
-
-
--------------------------------------------------------------
--- Derived instances for Data types                        --
--------------------------------------------------------------
-
-instance Show Expression where
-  show (AddExp e1 e2)  = (show e1) ++ " + " ++ (show e2)
-  show (MultExp e1 e2) = (show e1) ++ " * " ++ (show e2)
---  show (EqualsExp e1 e2)  = (show e1) ++ " = " ++ (show e2)
-  show (ConstExp x)       = show x
-  show (Variable x)    = show x
-
-instance Show Var where
-  show (Var x) = show (NoQuotesChar x)
-
-instance Eq Line_statement where
-  a == b = (line_num a) == (line_num b)
-
-instance Ord Line_statement where
-  compare a b = compare (line_num a) (line_num b)
-
-instance Show Line_statement where
-  show x = "(" ++ show (line_num x) ++ ", " ++ unparsed x ++ ")" 
-
-instance Show Statement where   
-  show (FOR x e1 e2) =
-    "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2)
-  show (FORSTEP x e1 e2 e3) =
-    "FOR " ++ (show x) ++ " = " ++ (show e1)
-    ++ " TO " ++ (show e2) ++ " STEP " ++ (show e3)
-  show (IF e x)   = "IF " ++ (show e) ++ " THEN " ++ (show x)
-  show (INPUT x)  = "INPUT " ++ (show x)
-  show (LET x y)  = "LET " ++ (show x) ++ " = " ++ (show y)
-  show (NEXT x)   = "NEXT " ++ (show x)
-  show (PRINT e)  = "PRINT " ++ show e
-  show (END)      = "END"                                   
-
-instance Show Constant where
-  show (NumConst x) = show x
-  show (StringConst x) = show (NoQuotes x)
-
-instance Show Value where
-  show (ValueVar x)   = show x
-  -- show (ValueFxn x)   = show x
-  -- show (ValueConst x) = show x
-
-instance Show Function where
-  show (INT e)    = "INT(" ++ (show e) ++ ")"
-  show (RND e)    = "RND(" ++ (show e) ++ ")"
-
-newtype NoQuotes = NoQuotes String
-newtype NoQuotesChar = NoQuotesChar Char
-
-instance Show NoQuotes where show (NoQuotes str) = str
-instance Show NoQuotesChar where show (NoQuotesChar char) = show (NoQuotes [char])
-
------------------------------_Main_-------------------------------------
 
 tuple_line :: Parser Int
 tuple_line = do {num <- int; return num}
@@ -225,49 +89,30 @@ parse_lines lines = [let p_line = (n , (fst . head) stment)
 --First trying to have a threaded symbol table of type list and eventually switch it to any Array of IORefs
 
 
+-- symbol_table :: [(Char,Constant)]
+-- symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
 
-symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
-
-edit_table :: [(Char,Constant)] -> Char -> Constant -> [(Char,Constant)]
-edit_table [] _ _ = []
-edit_table ((s,v):rest) sym val = if sym == s
-  then (s,val) : rest
-  else (s,v) : (edit_table rest sym val)
-
-
-
-read_table ((_,v):[]) _ = v
-read_table ((s,v):rest) sym = if sym == s then v else read_table rest sym
-
-write_to_table var val = do tab <- get
-                            put (edit_table tab var val)
-                            return ()
-
-read_from_table var = do tab <- get
-                         return (read_table tab var)
+-- edit_table :: [(Char,Constant)] -> Char -> Constant -> [(Char,Constant)]
+-- edit_table [] _ _ = []
+-- edit_table ((s,v):rest) sym val = if sym == s
+--   then (s,val) : rest
+--   else (s,v) : (edit_table rest sym val)
 
 
-test = (evalState $ eval_test 'A' (NumConst 43)) symbol_table
-eval_test var val = do {write_to_table 'A' val; nv <- read_from_table var; return nv}
--------------------------------------------------------------------------------------------------------------
--- writeToTable var val = do tab <- get                                                                    --
---                           let newTab = [if (character var) == s then (s,val) else (s,v) | (s,v) <- tab] --
---                           put tab                                                                       --
---                           return tab                                                                    --
---                                                                                                         --
--- readFromTable' var = do tab <- get                                                                      --
---                        let varvar = (head) [v | (s,v) <- tab, s == (character var)]                     --
---                        return (varvar)                                                                  --
---                                                                                                         --
--- readRefFromTable :: Char -> State Interpereter (IO (IORef Constant))                                    --
--- readRefFromTable var = do prgrm_info <- get                                                             --
---                           return ((s_table prgrm_info) ! var)                                           --
---                                                                                                         --
--- get_ref :: Char -> Interpereter -> IO (IORef Constant)                                                  --
--- get_ref var = (evalState $ readRefFromTable var)                                                        --
--------------------------------------------------------------------------------------------------------------
+
+-- read_table ((_,v):[]) _ = v
+-- read_table ((s,v):rest) sym = if sym == s then v else read_table rest sym
+
+-- write_to_table var val = do tab <- get
+--                             put (edit_table tab var val)
+--                             return ()
+
+-- read_from_table var = do tab <- get
+--                          return (read_table tab var)
 
 
+-- test = (evalState $ eval_test 'A' (NumConst 43)) symbol_table
+-- eval_test var val = do {write_to_table 'A' val; nv <- read_from_table var; return nv}---------
 
 
 main = do
@@ -279,8 +124,10 @@ main = do
             let sorted_array = array bound sorted_lines
                   where sorted_lines = parse_lines $ tupled_lines (lines content)
                         bound = (1, length sorted_lines)
-            let symbol_table = (array ('A','Z') [ (i,newIORef (NumConst 0))| i <- ['A'..'Z']])
-            let prgrm = Program symbol_table 1
+--            let symbol_table = (array ('A','Z') [ (i,newIORef (NumConst 0))| i <- ['A'..'Z']])
+--            let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
+--            let prgrm = Program symbol_table 1
+            
             putStrLn $ show sorted_array
             
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
