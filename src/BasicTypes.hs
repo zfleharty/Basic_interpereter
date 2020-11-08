@@ -14,33 +14,19 @@ module BasicTypes
 {-# LANGUAGE MultiParamTypeClasses #-}
 data Statement      = FOR Var Expression Expression
                     | FORSTEP Var Expression Expression Expression
-                    | IF Expression Constant
+                    | IF CompareExpr Constant
                     | INPUT Var
                     | LET Var Expression
                     | NEXT Var
                     | PRINT Expression
                     | END 
 
--- class Interpreter a b where
---    eval :: a -> b
-
--- --class EvNumExpr a where
--- --   eval :: a -> Int
-
--- instance Interpreter Expression Int where
---   eval (AddExp e1 e2) = (eval e1) + (eval e2)
---   eval (MultExp e1 e2) = (eval e1) * (eval e2)
---   eval (ConstExp e) = num e
-
 data Expression     = AddExp Expression Expression 
                     | MultExp Expression Expression
                     | ConstExp {cons::Constant}
                     | Variable {var::Var}
 
-
-
 data CompareExpr    = EqualsExpr Expression Expression
-
 
 data Var            = Var {character::Char}
 
@@ -73,7 +59,6 @@ data Interpereter = Program {s_table :: [(Char,Constant)], program_counter:: Int
 instance Show Expression where
   show (AddExp e1 e2)  = (show e1) ++ " + " ++ (show e2)
   show (MultExp e1 e2) = (show e1) ++ " * " ++ (show e2)
---  show (EqualsExp e1 e2)  = (show e1) ++ " = " ++ (show e2)
   show (ConstExp x)       = show x
   show (Variable x)    = show x
 
@@ -102,14 +87,18 @@ instance Show Statement where
   show (PRINT e)  = "PRINT " ++ show e
   show (END)      = "END"                                   
 
+instance Show CompareExpr where
+  show (EqualsExpr a b) =  show a ++ " == " ++ show b
+  
 instance Show Constant where
   show (NumConst x) = show x
   show (StringConst x) = show (NoQuotes x)
 
 instance Show Value where
   show (ValueVar x)   = show x
-  -- show (ValueFxn x)   = show x
-  -- show (ValueConst x) = show x
+  show (ValueFxn x)   = show x
+  show (ValueConst x) = show x
+  show (ValueParens x) = show x
 
 instance Show Function where
   show (INT e)    = "INT(" ++ (show e) ++ ")"
@@ -118,5 +107,5 @@ instance Show Function where
 newtype NoQuotes = NoQuotes String
 newtype NoQuotesChar = NoQuotesChar Char
 
-instance Show NoQuotes where show (NoQuotes str) = str
+instance Show NoQuotes where show (NoQuotes showstr) = showstr
 instance Show NoQuotesChar where show (NoQuotesChar char) = show (NoQuotes [char])

@@ -1,4 +1,4 @@
-{----------------------------------------------------------------------}
+----------------------------------------------------------------------}
 {-                                                                    -}
 {- CS 556: Adv Declarative Programming                                -}
 {- Fall 2020                                                          -}
@@ -32,7 +32,7 @@
    40 PRINT A * (B + C)
    50 END                                                             -}
 {----------------------------------------------------------------------}
-{-# LANGUAGE MultiParamTypeClasses #-}
+
 import System.IO
 import Parselib
 import Data.Char
@@ -89,32 +89,93 @@ parse_lines lines = [let p_line = (n , (fst . head) stment)
 --First trying to have a threaded symbol table of type list and eventually switch it to any Array of IORefs
 
 
--- symbol_table :: [(Char,Constant)]
--- symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
 
--- edit_table :: [(Char,Constant)] -> Char -> Constant -> [(Char,Constant)]
--- edit_table [] _ _ = []
--- edit_table ((s,v):rest) sym val = if sym == s
---   then (s,val) : rest
---   else (s,v) : (edit_table rest sym val)
+------------------------------------------------------------------------------------
+-- symbol_table = (array ('A','Z') [ (i,newIORef (NumConst 0))| i <- ['A'..'Z']]) --
+--                                                                                --
+-- writeToTable varvar val = do table <- ask                                      --
+--                              let ref = (table ! varvar)                        --
+--                              return $ liftIO $ ref >>= (`writeIORef` val)      --
+--                                                                                --
+-- readFromTable varvar = do table <- ask                                         --
+--                           return (table ! varvar)                              --
+------------------------------------------------------------------------------------
+
+-- runTest = ((runReader (eval_test 'A' (NumConst 3)))) symbol_table
+
+-- eval_test varvar val = do
+--   runReader writeToTable 'A' val
+--   nv <- readFromTable varvar
+--   return nv
+-- write_and_read_example :: (MonadIO m1, Ix i) => i -> b -> ReaderT (Array i (IO (IORef b))) m1 (IO b)
+-- write_and_read_example varvar val = do
+--   table <- ask
+--   ref <- (table ! varvar)
+--   liftIO $ ref >>= (`writeIORef` val)
+--   return  $ ref >>= readIORef
+
+------------------------------------------------------------------------------------------------------
+-- write_ref ioref val = do                                                                         --
+--   ref <- ioref                                                                                   --
+--   return $ writeIORef ref val                                                                    --
+--                                                                                                  --
+-- write_to_table :: (Monad m1, Ix i) => i -> a -> ReaderT (Array i (IO (IORef a))) m1 (m2 (IO ())) --
+-- write_to_table varvar val = do                                                                   --
+--   table <- ask                                                                                   --
+--   let ref = (table ! varvar)                                                                     --
+--   return $ write_ref ref val                                                                     --
+--                                                                                                  --
+-- read_from_table varvar = do                                                                      --
+--   table <- ask                                                                                   --
+--   let ref = (table ! varvar)                                                                     --
+--   return $ readIORef ref >>= print                                                               --
+------------------------------------------------------------------------------------------------------
+symbol_table :: [(Char,Constant)]
+symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
+
+edit_table :: Char -> Constant -> [(Char,Constant)]-> [(Char,Constant)]
+edit_table _ _ [] = []
+edit_table sym val ((s,v):rest)= if sym == s
+  then (s,val) : rest
+  else (s,v) : (edit_table sym val rest )
 
 
 
--- read_table ((_,v):[]) _ = v
--- read_table ((s,v):rest) sym = if sym == s then v else read_table rest sym
+read_table ((_,v):[]) _ = v
+read_table ((s,v):rest) sym = if sym == s then v else read_table rest sym
 
+write_to_table var val = modify (edit_table var val)
 -- write_to_table var val = do tab <- get
---                             put (edit_table tab var val)
+--                             put $ edit_table tab var val
 --                             return ()
 
--- read_from_table var = do tab <- get
---                          return (read_table tab var)
+read_from_table var = do tab <- get
+                         return (read_table tab var)
+
+test = (evalState $ eval_test 'A' (NumConst 43)) symbol_table
+eval_test var val = do {write_to_table 'A' val; nv <- read_from_table var; return nv}---------
 
 
--- test = (evalState $ eval_test 'A' (NumConst 43)) symbol_table
--- eval_test var val = do {write_to_table 'A' val; nv <- read_from_table var; return nv}---------
+eval_expr e = do
+  case e of
+    (AddExp (ConstExp c1) (ConstExp c2)) -> (num c1) + (num c2)
+    (AddExp (ConstExp c1) (e')) -> (num c1) + (eval_expr e')
+    (AddExp (e') (ConstExp c1)) -> (num c1) + (eval_expr e')
+    (AddExp (e1) (e2)) -> (eval_expr e1) + (eval_expr e2)
+    (MultExp (ConstExp c1) (ConstExp c2)) -> (num c1) * (num c2)
+    (MultExp (ConstExp c1) (e')) -> (num c1) * (eval_expr e')
+    (MultExp (e') (ConstExp c1)) -> (num c1) * (eval_expr e')
+    (MultExp (e1) (e2)) -> (eval_expr e1) * (eval_expr e2)
+--    (Variable (Var c)) -> do
+      
+      
+  
+
+eval_let (LET (Var i) (ConstExp c)) = write_to_table i c
+eval_print (PRINT e) = do putStrLn $ show $ eval_expr e
 
 
+--test_vals = do {write_to_table 'A' (NumConst 3)}
 main = do
   --args <- getArgs 
   --fileExists <- doesFileExist $ head args
@@ -124,9 +185,23 @@ main = do
             let sorted_array = array bound sorted_lines
                   where sorted_lines = parse_lines $ tupled_lines (lines content)
                         bound = (1, length sorted_lines)
---            let symbol_table = (array ('A','Z') [ (i,newIORef (NumConst 0))| i <- ['A'..'Z']])
---            let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
---            let prgrm = Program symbol_table 1
+            let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
+            let run_comp = (\f -> (evalState f) symbol_table)
+
+            let first_statement = (sorted_array ! 1)
+
+--            let value = run_comp $ (let_test first_statement)
+            
+
+  --          putStrLn $  show value
+
+           --------------------------------------------------------------------------------------------------------------------------------
+           --  let symbol_table = (array ('A','Z') [ (i,newIORef (NumConst 0))| i <- ['A'..'Z']])                                        --
+           --  let f = (runReaderT $ (write_and_read_example 'A' (NumConst 3))) ::  Array Char (IO (IORef Constant)) -> IO (IO Constant) --
+           --  value <- f symbol_table                                                                                                   --
+           -- let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]                                                                   --
+           -- let prgrm = Program symbol_table 1                                                                                         --
+           --------------------------------------------------------------------------------------------------------------------------------
             
             putStrLn $ show sorted_array
             
@@ -197,7 +272,7 @@ let_statement   :: Parser Statement
 print_statement :: Parser Statement
 
 statement =
-  for_statement +++ input_statement +++ --if_statement
+  for_statement +++ input_statement +++ if_statement +++
   let_statement +++ next_statement +++ print_statement +++
   end_statement
   
@@ -208,12 +283,12 @@ end_statement = do {_ <- token p_end; return END}
 -- would be helpful to have a separate Boolean expression type
 -- but our BASIC grammar doesn't seem to have that
 -- Temporarily looking only for EqualsExp in the IF
--- if_statement = do
---   token p_if
---   boolExpr <- token equals_expr
---   token p_then
---   c <- token p_const
---   return (IF boolExpr c)
+if_statement = do
+  token p_if
+  boolExpr <- token equals_expr
+  token p_then
+  c <- token p_const
+  return (IF boolExpr c)
 
 input_statement = do
   token p_input
@@ -278,7 +353,8 @@ num_expr    :: Parser Expression
 expr        :: Parser Expression
 add_exp     :: Parser Expression
 mult_exp    :: Parser Expression
---equals_expr :: Parser Expression
+equals_expr :: Parser CompareExpr
+
 value       :: Parser Expression
 
 
@@ -302,11 +378,11 @@ mult_exp = do {
 
 -- set up for Expression = Expression
 -- may be too general for our needs and rely on inadeq expr parser
--- equals_expr = do
---   x <- token expr
---   token equal
---   y <- token expr
---   return (EqualsExp x y)
+equals_expr = do
+  x <- token expr
+  token equal
+  y <- token expr
+  return (EqualsExpr x y)
 
 value    = do
   many (char '(')
