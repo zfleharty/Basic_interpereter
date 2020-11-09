@@ -149,33 +149,64 @@ write_to_table var val = modify (edit_table var val)
 --                             put $ edit_table tab var val
 --                             return ()
 
-read_from_table var = do tab <- get
-                         return (read_table tab var)
+get_val var = do tab <- get
+                 return (read_table tab var)
 
 test = (evalState $ eval_test 'A' (NumConst 43)) symbol_table
-eval_test var val = do {write_to_table 'A' val; nv <- read_from_table var; return nv}---------
+eval_test var val = do {write_to_table 'A' val; nv <- get_val var; return nv}
 
 
-eval_expr e = do
-  case e of
-    (AddExp (ConstExp c1) (ConstExp c2)) -> (num c1) + (num c2)
-    (AddExp (ConstExp c1) (e')) -> (num c1) + (eval_expr e')
-    (AddExp (e') (ConstExp c1)) -> (num c1) + (eval_expr e')
-    (AddExp (e1) (e2)) -> (eval_expr e1) + (eval_expr e2)
-    (MultExp (ConstExp c1) (ConstExp c2)) -> (num c1) * (num c2)
-    (MultExp (ConstExp c1) (e')) -> (num c1) * (eval_expr e')
-    (MultExp (e') (ConstExp c1)) -> (num c1) * (eval_expr e')
+
+--------------------------------------------------------------------
+-- rewrite_expr e = do                                            --
+--   tab <- get                                                   --
+--   return $ let r = ((\e' -> evalState $ rewrite_expr e') tab)  --
+--     in case e of                                               --
+--          AddExp e1 e2 -> AddExp (r e1) (r e2)                  --
+--          MultExp e1 e2 -> MultExp (r e1) (r e2)                --
+--          ConstExp c -> ConstExp c                              --
+--          Variable (Var v) -> Variable (Var (read_table tab v)) --
+--------------------------------------------------------------------
+    
+
+
+rewrite_expr e = do
+  tab <- get
+  let r = (\e' -> (evalState $ rewrite_expr e') tab)
+    in case e of
+         AddExp e1 e2 -> return $ AddExp (r e1) (r e2)
+         MultExp e1 e2 -> return $ MultExp (r e1) (r e2)
+         ConstExp c -> return $ ConstExp c
+         Variable (Var v) -> do
+           value <- get_val v
+           return (ConstExp value)
+
+eval_expr e = do                                                 
+  case e of                                                      
+    (AddExp (ConstExp c1) (ConstExp c2)) -> (num c1) + (num c2)  
+    (AddExp (ConstExp c1) (e')) -> (num c1) + (eval_expr e')     
+    (AddExp (e') (ConstExp c1)) -> (num c1) + (eval_expr e')     
+    (AddExp (e1) (e2)) -> (eval_expr e1) + (eval_expr e2)        
+    (MultExp (ConstExp c1) (ConstExp c2)) -> (num c1) * (num c2) 
+    (MultExp (ConstExp c1) (e')) -> (num c1) * (eval_expr e')    
+    (MultExp (e') (ConstExp c1)) -> (num c1) * (eval_expr e')    
     (MultExp (e1) (e2)) -> (eval_expr e1) * (eval_expr e2)
---    (Variable (Var c)) -> do
+    
+
+    
+    
       
       
   
 
 eval_let (LET (Var i) (ConstExp c)) = write_to_table i c
-eval_print (PRINT e) = do putStrLn $ show $ eval_expr e
+eval_print (PRINT e) = do
+  tab <- get
+  let expr = ((evalState $ rewrite_expr e) tab)
+  return $ putStrLn $ show $ eval_expr expr
 
 
---test_vals = do {write_to_table 'A' (NumConst 3)}
+
 main = do
   --args <- getArgs 
   --fileExists <- doesFileExist $ head args
@@ -394,6 +425,10 @@ value    = do
 -- ============================== --
 --  some definitions for testing  --
 -- ============================== --
+
+test_expr1 = (MultExp (ConstExp (NumConst 2)) (AddExp (ConstExp (NumConst 3)) (ConstExp (NumConst 4))))  
+test_expr2 = (MultExp (Variable (Var 'A')) (AddExp (Variable (Var 'B')) (Variable (Var 'C'))))
+test_table = [('A',(NumConst 2)),  ('B',(NumConst 3)),  ('C',(NumConst 4))] ++ [(i,NumConst 0) | i <- ['D'..'Z']]
 
 test_number_1 = ConstExp (NumConst 1)
 test_number_5 = ConstExp (NumConst 5)
