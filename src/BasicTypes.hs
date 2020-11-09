@@ -21,9 +21,9 @@ data Statement      = FOR Var Expression Expression
                     | PRINT Expression
                     | END 
 
-data Expression     = AddExp Expression Expression 
-                    | MultExp Expression Expression
-                    | ConstExp {cons::Constant}
+data Expression     = AddExpr Expression Expression 
+                    | MultExpr Expression Expression
+                    | ConstExpr {const::Constant}
                     | Variable {var::Var}
 
 data CompareExpr    = EqualsExpr Expression Expression
@@ -33,10 +33,10 @@ data Var            = Var {character::Char}
 data Constant       = NumConst {num::Int}
                     | StringConst {str::String}
 
-data NegateExp      = Neg PowerExp
-                    | Pexp PowerExp -- fix this!
+data NegateExpr     = Neg PowerExpr
+                    | Pexpr PowerExpr -- fix this!
 
-data PowerExp      = Pow Value PowerExp
+data PowerExpr      = Pow Value PowerExpr
                     | PowValue Value
 
 data Value          = ValueParens Expression
@@ -57,10 +57,10 @@ data Interpereter = Program {s_table :: [(Char,Constant)], program_counter:: Int
 -------------------------------------------------------------
 
 instance Show Expression where
-  show (AddExp e1 e2)  = (show e1) ++ " + " ++ (show e2)
-  show (MultExp e1 e2) = (show e1) ++ " * " ++ (show e2)
-  show (ConstExp x)       = show x
-  show (Variable x)    = show x
+  show (AddExpr e1 e2)  = (show e1) ++ " + " ++ (show e2)
+  show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
+  show (ConstExpr x)    = show x
+  show (Variable x)     = show x
 
 instance Show Var where
   show (Var x) = show (NoQuotesChar x)
@@ -80,12 +80,12 @@ instance Show Statement where
   show (FORSTEP x e1 e2 e3) =
     "FOR " ++ (show x) ++ " = " ++ (show e1)
     ++ " TO " ++ (show e2) ++ " STEP " ++ (show e3)
-  show (IF e x)   = "IF " ++ (show e) ++ " THEN " ++ (show x)
-  show (INPUT x)  = "INPUT " ++ (show x)
-  show (LET x y)  = "LET " ++ (show x) ++ " = " ++ (show y)
-  show (NEXT x)   = "NEXT " ++ (show x)
-  show (PRINT e)  = "PRINT " ++ show e
-  show (END)      = "END"                                   
+  show (IF e x)  = "IF "    ++ (show e) ++ " THEN " ++ (show x)
+  show (INPUT x) = "INPUT " ++ (show x)
+  show (LET x y) = "LET "   ++ (show x) ++ " = "    ++ (show y)
+  show (NEXT x)  = "NEXT "  ++ (show x)
+  show (PRINT e) = "PRINT " ++ (show e)
+  show (END)     = "END"                                   
 
 instance Show CompareExpr where
   show (EqualsExpr a b) =  show a ++ " == " ++ show b
@@ -107,5 +107,7 @@ instance Show Function where
 newtype NoQuotes = NoQuotes String
 newtype NoQuotesChar = NoQuotesChar Char
 
-instance Show NoQuotes where show (NoQuotes showstr) = showstr
-instance Show NoQuotesChar where show (NoQuotesChar char) = show (NoQuotes [char])
+instance Show NoQuotes where
+  show (NoQuotes showstr) = showstr
+instance Show NoQuotesChar where
+  show (NoQuotesChar char) = show (NoQuotes [char])
