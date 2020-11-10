@@ -3,8 +3,8 @@ module BasicTypes
    Expression(..),
    CompareExpr(..),
    Constant(..),
-   NegateExp(..),
-   PowerExp(..),
+   NegateExpr(..),
+   PowerExpr(..),
    Value(..),
    Function(..),
    Var(..),
@@ -48,7 +48,7 @@ data Function       = INT Expression
                     | RND Expression
 
 data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String} 
-                    | Parsed_line {line_num:: Int, sttment:: Statement} 
+                    | Parsed_line {ix:: Int, orgLine:: Int, sttment:: Statement} 
 
 data Interpereter = Program {s_table :: [(Char,Constant)], program_counter:: Int}
 

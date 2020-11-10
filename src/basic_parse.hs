@@ -72,8 +72,8 @@ tupled_lines ls = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
 --                  returning a list of tuples of the form
 --                  (new line #, Statement) where the new line #s now
 --                  run consecutively 1, 2, 3, etc.
-parse_lines :: (Num a, Enum a) => [Line_statement] -> [(a, Statement)]
-parse_lines lines = [let p_line = (n , (fst . head) stment)
+--parse_lines :: (Num a, Enum a) => [Line_statement] -> [(a, Statement)]
+parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stment)
                                where stment = parse statement (unparsed ls)
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
@@ -162,9 +162,9 @@ eval_test var val = do {write_to_table 'A' val; nv <- get_val var; return nv}
 --   tab <- get                                                   --
 --   return $ let r = ((\e' -> evalState $ rewrite_expr e') tab)  --
 --     in case e of                                               --
---          AddExp e1 e2 -> AddExp (r e1) (r e2)                  --
---          MultExp e1 e2 -> MultExp (r e1) (r e2)                --
---          ConstExp c -> ConstExp c                              --
+--          AddExpr e1 e2 -> AddExpr (r e1) (r e2)                  --
+--          MultExpr e1 e2 -> MultExpr (r e1) (r e2)                --
+--          ConstExpr c -> ConstExpr c                              --
 --          Variable (Var v) -> Variable (Var (read_table tab v)) --
 --------------------------------------------------------------------
     
@@ -174,23 +174,23 @@ rewrite_expr e = do
   tab <- get
   let r = (\e' -> (evalState $ rewrite_expr e') tab)
     in case e of
-         AddExp e1 e2 -> return $ AddExp (r e1) (r e2)
-         MultExp e1 e2 -> return $ MultExp (r e1) (r e2)
-         ConstExp c -> return $ ConstExp c
+         AddExpr e1 e2 -> return $ AddExpr (r e1) (r e2)
+         MultExpr e1 e2 -> return $ MultExpr (r e1) (r e2)
+         ConstExpr c -> return $ ConstExpr c
          Variable (Var v) -> do
            value <- get_val v
-           return (ConstExp value)
+           return (ConstExpr value)
 
 eval_expr e = do                                                 
   case e of                                                      
-    (AddExp (ConstExp c1) (ConstExp c2)) -> (num c1) + (num c2)  
-    (AddExp (ConstExp c1) (e')) -> (num c1) + (eval_expr e')     
-    (AddExp (e') (ConstExp c1)) -> (num c1) + (eval_expr e')     
-    (AddExp (e1) (e2)) -> (eval_expr e1) + (eval_expr e2)        
-    (MultExp (ConstExp c1) (ConstExp c2)) -> (num c1) * (num c2) 
-    (MultExp (ConstExp c1) (e')) -> (num c1) * (eval_expr e')    
-    (MultExp (e') (ConstExp c1)) -> (num c1) * (eval_expr e')    
-    (MultExp (e1) (e2)) -> (eval_expr e1) * (eval_expr e2)
+    (AddExpr (ConstExpr c1) (ConstExpr c2)) -> (num c1) + (num c2)  
+    (AddExpr (ConstExpr c1) (e')) -> (num c1) + (eval_expr e')     
+    (AddExpr (e') (ConstExpr c1)) -> (num c1) + (eval_expr e')     
+    (AddExpr (e1) (e2)) -> (eval_expr e1) + (eval_expr e2)        
+    (MultExpr (ConstExpr c1) (ConstExpr c2)) -> (num c1) * (num c2) 
+    (MultExpr (ConstExpr c1) (e')) -> (num c1) * (eval_expr e')    
+    (MultExpr (e') (ConstExpr c1)) -> (num c1) * (eval_expr e')    
+    (MultExpr (e1) (e2)) -> (eval_expr e1) * (eval_expr e2)
     
 
     
@@ -199,7 +199,7 @@ eval_expr e = do
       
   
 
-eval_let (LET (Var i) (ConstExp c)) = write_to_table i c
+eval_let (LET (Var i) (ConstExpr c)) = write_to_table i c
 eval_print (PRINT e) = do
   tab <- get
   let expr = ((evalState $ rewrite_expr e) tab)
@@ -213,7 +213,7 @@ main = do
   if True -------------------- fileExists __________________Changed for testing inside interactive GHCI without command line args
     then do handle <- openFile ("foo.bas") ReadMode
             content <- hGetContents handle
-            let sorted_array = array bound sorted_lines
+            let sorted_array = array bound [(ix ls, ls) | ls <-sorted_lines]
                   where sorted_lines = parse_lines $ tupled_lines (lines content)
                         bound = (1, length sorted_lines)
             let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
@@ -313,7 +313,7 @@ end_statement = do {_ <- token p_end; return END}
 -- if_statement needs work: getting confused here with expressions
 -- would be helpful to have a separate Boolean expression type
 -- but our BASIC grammar doesn't seem to have that
--- Temporarily looking only for EqualsExp in the IF
+-- Temporarily looking only for EqualsExpr in the IF
 if_statement = do
   token p_if
   boolExpr <- token equals_expr
@@ -340,7 +340,7 @@ let_statement = do
   var <- token p_var
   _ <- token equal
   val <- token p_const
-  return (LET var (ConstExp val))
+  return (LET var (ConstExpr val))
 
 next_statement = do
   token p_next
@@ -382,8 +382,8 @@ p_symbol = do {a <- sat (isAlpha); b <- many (sat var_char);
 var_expr    :: Parser Expression
 num_expr    :: Parser Expression
 expr        :: Parser Expression
-add_exp     :: Parser Expression
-mult_exp    :: Parser Expression
+add_expr     :: Parser Expression
+mult_expr    :: Parser Expression
 equals_expr :: Parser CompareExpr
 
 value       :: Parser Expression
@@ -391,21 +391,21 @@ value       :: Parser Expression
 
 var_expr = do {var <- token upper; return (Variable (Var var))}
 
-num_expr = do {d <- token int; return (ConstExp (NumConst d))}
+num_expr = do {d <- token int; return (ConstExpr (NumConst d))}
 
-expr     = add_exp +++ mult_exp
+expr     = add_expr +++ mult_expr
 
-add_exp  = do {
-  x <- token mult_exp;
+add_expr  = do {
+  x <- token mult_expr;
   token (char '+');
-  y <- token add_exp;
-  return (AddExp x y)} +++ mult_exp
+  y <- token add_expr;
+  return (AddExpr x y)} +++ mult_expr
 
-mult_exp = do {
+mult_expr = do {
   x <- token value;
   token (char '*');
-  y <- token mult_exp;
-  return (MultExp x y)} +++ value
+  y <- token mult_expr;
+  return (MultExpr x y)} +++ value
 
 -- set up for Expression = Expression
 -- may be too general for our needs and rely on inadeq expr parser
@@ -426,20 +426,20 @@ value    = do
 --  some definitions for testing  --
 -- ============================== --
 
-test_expr1 = (MultExp (ConstExp (NumConst 2)) (AddExp (ConstExp (NumConst 3)) (ConstExp (NumConst 4))))  
-test_expr2 = (MultExp (Variable (Var 'A')) (AddExp (Variable (Var 'B')) (Variable (Var 'C'))))
+test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4))))  
+test_expr2 = (MultExpr (Variable (Var 'A')) (AddExpr (Variable (Var 'B')) (Variable (Var 'C'))))
 test_table = [('A',(NumConst 2)),  ('B',(NumConst 3)),  ('C',(NumConst 4))] ++ [(i,NumConst 0) | i <- ['D'..'Z']]
 
-test_number_1 = ConstExp (NumConst 1)
-test_number_5 = ConstExp (NumConst 5)
-test_number_10 = ConstExp (NumConst 10)
+test_number_1 = ConstExpr (NumConst 1)
+test_number_5 = ConstExpr (NumConst 5)
+test_number_10 = ConstExpr (NumConst 10)
 test_conststring = StringConst "ABC"
 test_var_x = Var 'X'
 test_var_y = Var 'Y'
 test_valuevar = ValueVar test_var_x
 -- test_valuefxn = ValueFxn (RND (Variable test_var_x))
 -- test_valueconst = ValueConst (NumConst 10)
---test_expr_equals = EqualsExp (Variable test_var_x) (ConstExp (NumConst 10))
+--test_expr_equals = EqualsExpr (Variable test_var_x) (ConstExpr (NumConst 10))
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
   FORSTEP test_var_x test_number_5 test_number_10 test_number_1
