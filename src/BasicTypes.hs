@@ -72,7 +72,11 @@ instance Ord Line_statement where
   compare a b = compare (line_num a) (line_num b)
 
 instance Show Line_statement where
-  show x = "(" ++ show (line_num x) ++ ", " ++ unparsed x ++ ")" 
+  show x@(Unparsed_line i s) = "(" ++ show (line_num x) ++ ", "
+                             ++ unparsed x ++ ")"
+  show x@(Parsed_line i j s) = "(" ++ show (ix x) ++ ", "
+                                  ++ show (origLine x) ++ ", " 
+                                  ++ show (sttment x) ++ ")"
 
 instance Show Statement where   
   show (FOR x e1 e2) =
