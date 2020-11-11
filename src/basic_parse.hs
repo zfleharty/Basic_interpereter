@@ -475,7 +475,7 @@ test_02 = do
   let str_of_stment = (fst . head) stment
   putStrLn $ "str_of_stment = " ++ (show str_of_stment)
   let parsed_line_construction = Parsed_line {ix=1, origLine=10, sttment = str_of_stment}
-  putStrLn $ "hello! parsed_line_construction = " ++ (show parsed_line_construction)
+  putStrLn $ "parsed_line_construction = " ++ (show parsed_line_construction)
   
 
 -- ====================================== --
