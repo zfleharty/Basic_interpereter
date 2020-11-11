@@ -47,6 +47,7 @@ import Control.Monad
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Reader
 import Control.Monad.IO.Class
+import System.Exit
 -- ================================== --
 -- experimenting by Hoss              --
 import qualified Data.Text    as Text
@@ -157,43 +158,6 @@ eval_test var val = do {write_to_table 'A' val; nv <- get_val var; return nv}
 
 
 
---------------------------------------------------------------------
--- rewrite_expr e = do                                            --
---   tab <- get                                                   --
---   return $ let r = ((\e' -> evalState $ rewrite_expr e') tab)  --
---     in case e of                                               --
---          AddExpr e1 e2 -> AddExpr (r e1) (r e2)                  --
---          MultExpr e1 e2 -> MultExpr (r e1) (r e2)                --
---          ConstExpr c -> ConstExpr c                              --
---          Variable (Var v) -> Variable (Var (read_table tab v)) --
---------------------------------------------------------------------
-    
-
-
-rewrite_expr e = do
-  tab <- get
-  let r = (\e' -> (evalState $ rewrite_expr e') tab)
-    in case e of
-         AddExpr e1 e2 -> return $ AddExpr (r e1) (r e2)
-         MultExpr e1 e2 -> return $ MultExpr (r e1) (r e2)
-         ConstExpr c -> return $ ConstExpr c
-         Variable (Var v) -> do
-           value <- get_val v
-           return (ConstExpr value)
-
-eval_expr e = do                                                 
-  case e of                                                      
-    (AddExpr (ConstExpr c1) (ConstExpr c2)) -> (num c1) + (num c2)  
-    (AddExpr (ConstExpr c1) (e')) -> (num c1) + (eval_expr e')     
-    (AddExpr (e') (ConstExpr c1)) -> (num c1) + (eval_expr e')     
-    (AddExpr (e1) (e2)) -> (eval_expr e1) + (eval_expr e2)        
-    (MultExpr (ConstExpr c1) (ConstExpr c2)) -> (num c1) * (num c2) 
-    (MultExpr (ConstExpr c1) (e')) -> (num c1) * (eval_expr e')    
-    (MultExpr (e') (ConstExpr c1)) -> (num c1) * (eval_expr e')    
-    (MultExpr (e1) (e2)) -> (eval_expr e1) * (eval_expr e2)
-    
-
-
 write_to_array i val= do
   table <- ask
   return $ writeArray table i val
@@ -204,15 +168,25 @@ read_array i = do
   return $ readArray table i
   
       
+eval_expr e = do
+  tab <- get
+  let r = (\e' -> (evalState $ eval_expr e') tab)
+    in case e of
+         AddExpr e1 e2 -> return $ (r e1) + (r e2)
+         MultExpr e1 e2 -> return $ (r e1) * (r e2)
+         ConstExpr c -> return $ num c
+         Variable (Var v) -> do
+           constvalue <- get_val v
+           return (num constvalue)
   
 
 eval_let (LET (Var i) (ConstExpr c)) = write_to_table i c
+
 eval_print (PRINT e) = do
   tab <- get
-  let expr = ((evalState $ rewrite_expr e) tab)
-  return $ putStrLn $ show $ eval_expr expr
+  return $ (putStrLn . show) ((evalState $ eval_expr e) tab)
 
-
+eval_end (END) = exitWith ExitSuccess
 
 main = do
   --args <- getArgs 
@@ -224,6 +198,7 @@ main = do
                   where sorted_lines = parse_lines $ tupled_lines (lines content)
                         bound = (1, length sorted_lines)
             let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
+
             let run_comp = (\f -> (evalState f) symbol_table)
 
             let first_statement = (sorted_array ! 1)
