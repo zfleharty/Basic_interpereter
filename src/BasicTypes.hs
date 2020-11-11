@@ -9,7 +9,7 @@ module BasicTypes
    Function(..),
    Var(..),
    Line_statement(..),
-   Interpereter(..)) where
+   Interpreter(..)) where
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 data Statement      = FOR Var Expression Expression
@@ -48,9 +48,9 @@ data Function       = INT Expression
                     | RND Expression
 
 data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String} 
-                    | Parsed_line {ix:: Int, orgLine:: Int, sttment:: Statement} 
+                    | Parsed_line {ix:: Int, origLine:: Int, sttment:: Statement} 
 
-data Interpereter = Program {s_table :: [(Char,Constant)], program_counter:: Int}
+data Interpreter = Program {s_table :: [(Char,Constant)], program_counter:: Int}
 
 -------------------------------------------------------------
 -- Derived instances for Data types                        --
