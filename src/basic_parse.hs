@@ -32,7 +32,7 @@
    40 PRINT A * (B + C)
    50 END                                                             -}
 {----------------------------------------------------------------------}
-
+import Data.Array.IO
 import System.IO
 import Parselib
 import Data.Char
@@ -89,7 +89,7 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
 --First trying to have a threaded symbol table of type list and eventually switch it to any Array of IORefs
 
 
-
+ 
 ------------------------------------------------------------------------------------
 -- symbol_table = (array ('A','Z') [ (i,newIORef (NumConst 0))| i <- ['A'..'Z']]) --
 --                                                                                --
@@ -193,9 +193,16 @@ eval_expr e = do
     (MultExpr (e1) (e2)) -> (eval_expr e1) * (eval_expr e2)
     
 
-    
-    
-      
+
+write_to_array i val= do
+  table <- ask
+  return $ writeArray table i val
+
+--read_array :: (Marray a e m1, Ix i, Monad m2 =
+read_array i = do
+  table <- ask
+  return $ readArray table i
+  
       
   
 
