@@ -454,7 +454,28 @@ test_program_list = ["10 LET A = 2",
                      "30 LET C = 4",
                      "40 PRINT A * (B + C)",
                      "50 END"]
+test_program_list_02 = ["30 LET C = 4",
+                     "20 LET B = 3",
+                     "10 LET A = 2",
+                     "40 PRINT A * (B + C)",
+                     "50 END"]
 
+test_02 = do
+  let lines = tupled_lines test_program_list_02
+  putStrLn $ "lines = " ++ (show lines)
+  let sorted_lines = sort lines
+  putStrLn $ "sorted_lines = " ++ (show sorted_lines)
+  let zipped_sorted_lines = zip [1..] sorted_lines
+  putStrLn $ "zipped_sorted_lines = " ++ (show zipped_sorted_lines)
+  let head_of_zipped = head zipped_sorted_lines
+  putStrLn $ "head_of_zipped = " ++ (show head_of_zipped)
+  let (n, ls) = head_of_zipped
+  let stment = parse statement (unparsed ls)
+  putStrLn $ "stment = " ++ (show stment)
+  let str_of_stment = (fst . head) stment
+  putStrLn $ "str_of_stment = " ++ (show str_of_stment)
+  let parsed_line_construction = Parsed_line {ix=1, origLine=10, sttment = str_of_stment}
+  putStrLn $ "hello! parsed_line_construction = " ++ (show parsed_line_construction)
   
 
 -- ====================================== --
