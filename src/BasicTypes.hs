@@ -19,9 +19,9 @@ data Statement      = FOR Var Expression Expression
                     | LET Var Expression
                     | NEXT Var
                     | PRINT Expression
-                    | END 
+                    | END
 
-data Expression     = AddExpr Expression Expression 
+data Expression     = AddExpr Expression Expression
                     | MultExpr Expression Expression
                     | ConstExpr {const::Constant}
                     | Variable {var::Var}
@@ -47,8 +47,8 @@ data Value          = ValueParens Expression
 data Function       = INT Expression
                     | RND Expression
 
-data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String} 
-                    | Parsed_line {ix:: Int, origLine:: Int, sttment:: Statement} 
+data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String}
+                    | Parsed_line {ix:: Int, origLine:: Int, sttment:: Statement}
 
 data Interpreter = Program {s_table :: [(Char,Constant)], program_counter:: Int}
 
@@ -72,13 +72,9 @@ instance Ord Line_statement where
   compare a b = compare (line_num a) (line_num b)
 
 instance Show Line_statement where
-  show x@(Unparsed_line i s) = "(" ++ show (line_num x) ++ ", "
-                             ++ unparsed x ++ ")"
-  show x@(Parsed_line i j s) = "(" ++ show (ix x) ++ ", "
-                                  ++ show (origLine x) ++ ", " 
-                                  ++ show (sttment x) ++ ")"
-
-instance Show Statement where   
+  show (Unparsed_line n s) = "(" ++ show n ++ ", " ++ s ++ ")"
+  show (Parsed_line i o stment) = "(" ++ show o ++ "->" ++ show i ++ ")," ++ show stment
+instance Show Statement where
   show (FOR x e1 e2) =
     "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2)
   show (FORSTEP x e1 e2 e3) =
@@ -89,11 +85,11 @@ instance Show Statement where
   show (LET x y) = "LET "   ++ (show x) ++ " = "    ++ (show y)
   show (NEXT x)  = "NEXT "  ++ (show x)
   show (PRINT e) = "PRINT " ++ (show e)
-  show (END)     = "END"                                   
+  show (END)     = "END"
 
 instance Show CompareExpr where
   show (EqualsExpr a b) =  show a ++ " == " ++ show b
-  
+
 instance Show Constant where
   show (NumConst x) = show x
   show (StringConst x) = show (NoQuotes x)
