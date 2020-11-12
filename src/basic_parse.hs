@@ -79,59 +79,6 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
                                where stment = parse statement (unparsed ls)
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
-
-------------------------------------------------------------------------
--- Change to search for GoToStatements and renumber them according to --
--- the reordering                                                     --
-------------------------------------------------------------------------
-
-
---------------NEXT STEP------
---Attempting to implement a threaded symbol table somehow
---First trying to have a threaded symbol table of type list and eventually switch it to any Array of IORefs
-
-
- 
-------------------------------------------------------------------------------------
--- symbol_table = (array ('A','Z') [ (i,newIORef (NumConst 0))| i <- ['A'..'Z']]) --
---                                                                                --
--- writeToTable varvar val = do table <- ask                                      --
---                              let ref = (table ! varvar)                        --
---                              return $ liftIO $ ref >>= (`writeIORef` val)      --
---                                                                                --
--- readFromTable varvar = do table <- ask                                         --
---                           return (table ! varvar)                              --
-------------------------------------------------------------------------------------
-
--- runTest = ((runReader (eval_test 'A' (NumConst 3)))) symbol_table
-
--- eval_test varvar val = do
---   runReader writeToTable 'A' val
---   nv <- readFromTable varvar
---   return nv
--- write_and_read_example :: (MonadIO m1, Ix i) => i -> b -> ReaderT (Array i (IO (IORef b))) m1 (IO b)
--- write_and_read_example varvar val = do
---   table <- ask
---   ref <- (table ! varvar)
---   liftIO $ ref >>= (`writeIORef` val)
---   return  $ ref >>= readIORef
-
-------------------------------------------------------------------------------------------------------
--- write_ref ioref val = do                                                                         --
---   ref <- ioref                                                                                   --
---   return $ writeIORef ref val                                                                    --
---                                                                                                  --
--- write_to_table :: (Monad m1, Ix i) => i -> a -> ReaderT (Array i (IO (IORef a))) m1 (m2 (IO ())) --
--- write_to_table varvar val = do                                                                   --
---   table <- ask                                                                                   --
---   let ref = (table ! varvar)                                                                     --
---   return $ write_ref ref val                                                                     --
---                                                                                                  --
--- read_from_table varvar = do                                                                      --
---   table <- ask                                                                                   --
---   let ref = (table ! varvar)                                                                     --
---   return $ readIORef ref >>= print                                                               --
-------------------------------------------------------------------------------------------------------
 symbol_table :: [(Char,Constant)]
 symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
 
@@ -158,34 +105,45 @@ test = (evalState $ eval_test 'A' (NumConst 43)) symbol_table
 eval_test var val = do {write_to_table 'A' val; nv <- get_val var; return nv}
 
 
-
-write_to_array i val= do
+write_to_array :: Char -> Constant -> ReaderT (IOArray Char Constant) IO ()
+write_to_array i val=  do
   table <- ask
-  return $ writeArray table i val
+  liftIO $ writeArray table i val
 
 --read_array :: (Marray a e m1, Ix i, Monad m2 =
 read_array i = do
   table <- ask
   return $ readArray table i
   
-      
-eval_expr e = do
-  tab <- get
-  let r = (\e' -> (evalState $ eval_expr e') tab)
+
+eval_expr :: Expression -> (IOArray Char Constant) -> Int
+eval_expr e arr = (runReaderT $ eval_expr' e) arr
+
+eval_expr' :: Expression -> ReaderT (IOArray Char Constant) IO () Int
+eval_expr' e = do
+  tab <- ask
+  let r = (\e' -> (runReaderT $ eval_expr' e') tab)
     in case e of
-         AddExpr e1 e2 -> return $ (r e1) + (r e2)
-         MultExpr e1 e2 -> return $ (r e1) * (r e2)
-         ConstExpr c -> return $ num c
+         AddExpr e1 e2 ->  return $ (r e1) + (r e2)
+         MultExpr e1 e2 ->   return $ (r e1) * (r e2)
+         ConstExpr c ->   return $ num c
          Variable (Var v) -> do
-           constvalue <- get_val v
-           return (num constvalue)
+           constValue <- (readArray tab v)
+           return (num constValue)
   
 
-eval_let (LET (Var i) (ConstExpr c)) = write_to_table i c
+eval_let :: Statement -> ReaderT (IOArray Char Constant) IO ()
+eval_let (LET (Var i) (ConstExpr c)) = do
+  table <- ask
+  liftIO $ writeArray table i c
 
-eval_print (PRINT e) = do
-  tab <- get
-  return $ (putStrLn . show) ((evalState $ eval_expr e) tab)
+--eval_print (PRINT e) = do
+--  table <- ask
+--  liftIO $ putStrLn . show $ (evalState $ eval_expr e) table
+
+-- eval_print (PRINT e) = do
+--   tab <- get
+--   return $ (putStrLn . show) ((evalState $ eval_expr e) tab)
 
 eval_end (END) = exitWith ExitSuccess
 
@@ -439,6 +397,8 @@ value    = do
 --  some definitions for testing  --
 -- ============================== --
 
+test_io_array = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+
 test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4))))  
 test_expr2 = (MultExpr (Variable (Var 'A')) (AddExpr (Variable (Var 'B')) (Variable (Var 'C'))))
 test_table = [('A',(NumConst 2)),  ('B',(NumConst 3)),  ('C',(NumConst 4))] ++ [(i,NumConst 0) | i <- ['D'..'Z']]
@@ -501,13 +461,14 @@ test_03 = do
 
 test_04 = do
   -- arr <- newArray (1,10) 37 :: IO (IOArray Int Int)
-  arr <- newArray ('A','Z') 0 :: IO (IOArray Char Int)
+  arr <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
   -- a <- readArray arr 1
   a <- readArray arr 'B'
   -- writeArray arr 1 64
-  writeArray arr 'B' 64
+  c <- (runReaderT $ write_to_array 'B' (NumConst 64)) arr
   -- b <- readArray arr 1
   b <- readArray arr 'B'
+  
   print (a,b)
   -- putStrLn $ show arr
   
