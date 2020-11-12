@@ -79,6 +79,10 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
                                where stment = parse statement (unparsed ls)
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
+
+
+
+
 symbol_table :: [(Char,Constant)]
 symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
 
@@ -105,31 +109,23 @@ test = (evalState $ eval_test 'A' (NumConst 43)) symbol_table
 eval_test var val = do {write_to_table 'A' val; nv <- get_val var; return nv}
 
 
-write_to_array :: Char -> Constant -> ReaderT (IOArray Char Constant) IO ()
-write_to_array i val=  do
-  table <- ask
-  liftIO $ writeArray table i val
 
---read_array :: (Marray a e m1, Ix i, Monad m2 =
-read_array i = do
-  table <- ask
-  return $ readArray table i
   
 
 eval_expr :: Expression -> (IOArray Char Constant) -> Int
 eval_expr e arr = (runReaderT $ eval_expr' e) arr
 
-eval_expr' :: Expression -> ReaderT (IOArray Char Constant) IO () Int
+eval_expr' :: Expression -> ReaderT (IOArray Char Constant) IO Int
 eval_expr' e = do
   tab <- ask
   let r = (\e' -> (runReaderT $ eval_expr' e') tab)
     in case e of
-         AddExpr e1 e2 ->  return $ (r e1) + (r e2)
-         MultExpr e1 e2 ->   return $ (r e1) * (r e2)
-         ConstExpr c ->   return $ num c
+         AddExpr e1 e2 -> return $ (r e1) + (r e2)
+         MultExpr e1 e2 ->  return $ (r e1) * (r e2)
+         ConstExpr c ->  return $ num c
          Variable (Var v) -> do
            constValue <- (readArray tab v)
-           return (num constValue)
+           return $ (num constValue)
   
 
 eval_let :: Statement -> ReaderT (IOArray Char Constant) IO ()
@@ -147,6 +143,18 @@ eval_let (LET (Var i) (ConstExpr c)) = do
 
 eval_end (END) = exitWith ExitSuccess
 
+
+-------------------------------------------------------------------------
+-- eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             --
+-- eval_statement s = case s of                                        --
+--                      (LET (Var i) (ConstExpr c)) -> do              --
+--                        table <- ask                                 --
+--                        liftIO $ writeArray table i c                --
+--                      (PRINT e) -> do                                --
+--                        table <- ask                                 --
+--                        liftIO $ putStrLn . show $ eval_expr e table --
+--                      (END e) -> exitWith ExitSuccess                --
+-------------------------------------------------------------------------
 main = do
   --args <- getArgs 
   --fileExists <- doesFileExist $ head args
@@ -461,11 +469,11 @@ test_03 = do
 
 test_04 = do
   -- arr <- newArray (1,10) 37 :: IO (IOArray Int Int)
-  arr <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+  arr <- newArray ('A','Z') 0 :: IO (IOArray Char Int)
   -- a <- readArray arr 1
   a <- readArray arr 'B'
   -- writeArray arr 1 64
-  c <- (runReaderT $ write_to_array 'B' (NumConst 64)) arr
+  writeArray arr 'B' 1 
   -- b <- readArray arr 1
   b <- readArray arr 'B'
   
