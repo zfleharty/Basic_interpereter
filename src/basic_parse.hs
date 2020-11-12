@@ -94,12 +94,12 @@ eval_expr' e    = do
   let r = (\e' -> (runReaderT $ eval_expr' e') tab)
     in case e of
          AddExpr e1 e2 -> do
-           i1 <- liftIO $ (r e1)
-           i2 <- liftIO $ r e1
+           i1 <- liftIO $ r e1
+           i2 <- liftIO $ r e2
            return $ i1 + i2
          MultExpr e1 e2 -> do
-           i1 <- liftIO $ (r e1)
-           i2 <- liftIO $ r e1
+           i1 <- liftIO $ r e1
+           i2 <- liftIO $ r e2
            return $ i1 * i2
          ConstExpr c ->  return $ num c
          Variable (Var v) -> do
@@ -126,6 +126,26 @@ eval_statement s  = case s of
                         e' <- liftIO (eval_expr e table)
                         liftIO $ putStrLn . show $ e'
                       END -> liftIO $ exitWith ExitSuccess                
+
+
+eval_line (Parsed_line i ol s) = do
+  eval_sttmnt s 
+
+create_program_array content = array bound [(ix ls, ls) | ls <- sorted_lines]
+                               where sorted_lines = parse_lines $ tupled_lines (lines content)
+                                     bound = (1, length sorted_lines)
+
+test_interp :: String -> IO ()
+test_interp file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  let sorted_array = array bound [(ix ls, ls) | ls <-sorted_lines]
+        where sorted_lines = parse_lines $ tupled_lines (lines content)
+              bound = (1, length sorted_lines)
+  symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+  sequence $ (`eval_line` symbol_table) <$> sorted_array
+  putStrLn "hello"
+                
 
 main = do
   --args <- getArgs 
@@ -381,7 +401,7 @@ test_io_array = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
 
 test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4))))  
 test_expr2 = (MultExpr (Variable (Var 'A')) (AddExpr (Variable (Var 'B')) (Variable (Var 'C'))))
-test_table = [('A',(NumConst 2)),  ('B',(NumConst 3)),  ('C',(NumConst 4))] ++ [(i,NumConst 0) | i <- ['D'..'Z']]
+
 
 test_number_1 = ConstExpr (NumConst 1)
 test_number_5 = ConstExpr (NumConst 5)
