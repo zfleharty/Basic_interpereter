@@ -73,7 +73,9 @@ instance Ord Line_statement where
 
 instance Show Line_statement where
   show (Unparsed_line n s) = "(" ++ show n ++ ", " ++ s ++ ")"
-  show (Parsed_line i o stment) = "(" ++ show o ++ "->" ++ show i ++ ")," ++ show stment
+  show (Parsed_line i o stment) = "(" ++ show o ++ "->" ++ show i
+                                  ++ ")," ++ show stment
+
 instance Show Statement where
   show (FOR x e1 e2) =
     "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2)
