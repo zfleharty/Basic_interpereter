@@ -80,81 +80,53 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
 
+-----------------------------------------------------------------------------
+--------------------- Evaluate Expression types -----------------------------
+-----------------------------------------------------------------------------
 
-
-
-symbol_table :: [(Char,Constant)]
-symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
-
-edit_table :: Char -> Constant -> [(Char,Constant)]-> [(Char,Constant)]
-edit_table _ _ [] = []
-edit_table sym val ((s,v):rest)= if sym == s
-  then (s,val) : rest
-  else (s,v) : (edit_table sym val rest )
-
-read_table ((_,v):[]) _ = v
-read_table ((s,v):rest) sym = if sym == s then v else read_table rest sym
-
-write_to_table var val = modify (edit_table var val)
--- write_to_table var val = do tab <- get
---                             put $ edit_table tab var val
---                             return ()
-
-symbol_array = array ('A', 'Z') [(c, 0) | c <- ['A'..'Z']]
-
-get_val var = do tab <- get
-                 return (read_table tab var)
-
-test = (evalState $ eval_test 'A' (NumConst 43)) symbol_table
-eval_test var val = do {write_to_table 'A' val; nv <- get_val var; return nv}
-
-
-
+eval_expr       :: Expression -> (IOArray Char Constant) -> IO Int
+eval_expr e arr = (runReaderT $ eval_expr' e) arr
   
 
-eval_expr :: Expression -> (IOArray Char Constant) -> Int
-eval_expr e arr = (runReaderT $ eval_expr' e) arr
-
-eval_expr' :: Expression -> ReaderT (IOArray Char Constant) IO Int
-eval_expr' e = do
+eval_expr'      :: Expression -> ReaderT (IOArray Char Constant) IO Int
+eval_expr' e    = do
   tab <- ask
   let r = (\e' -> (runReaderT $ eval_expr' e') tab)
     in case e of
-         AddExpr e1 e2 -> return $ (r e1) + (r e2)
-         MultExpr e1 e2 ->  return $ (r e1) * (r e2)
+         AddExpr e1 e2 -> do
+           i1 <- liftIO $ (r e1)
+           i2 <- liftIO $ r e1
+           return $ i1 + i2
+         MultExpr e1 e2 -> do
+           i1 <- liftIO $ (r e1)
+           i2 <- liftIO $ r e1
+           return $ i1 * i2
          ConstExpr c ->  return $ num c
          Variable (Var v) -> do
-           constValue <- (readArray tab v)
+           constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
   
 
-eval_let :: Statement -> ReaderT (IOArray Char Constant) IO ()
-eval_let (LET (Var i) (ConstExpr c)) = do
-  table <- ask
-  liftIO $ writeArray table i c
 
---eval_print (PRINT e) = do
---  table <- ask
---  liftIO $ putStrLn . show $ (evalState $ eval_expr e) table
+-----------------------------------------------------------------------------
+--------------------- Evaluate Statement types -----------------------------
+-----------------------------------------------------------------------------
 
--- eval_print (PRINT e) = do
---   tab <- get
---   return $ (putStrLn . show) ((evalState $ eval_expr e) tab)
+eval_sttmnt       :: Statement -> (IOArray Char Constant) -> IO ()
+eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             
 
-eval_end (END) = exitWith ExitSuccess
+eval_statement    :: Statement -> ReaderT (IOArray Char Constant) IO ()
+eval_statement s  = case s of                                        
+                      (LET (Var i) e) -> do              
+                        table <- ask
+                        c <- liftIO (eval_expr e table)
+                        liftIO $ writeArray table i (NumConst c)                
+                      (PRINT e) -> do                                
+                        table <- ask
+                        e' <- liftIO (eval_expr e table)
+                        liftIO $ putStrLn . show $ e'
+                      END -> liftIO $ exitWith ExitSuccess                
 
-
--------------------------------------------------------------------------
--- eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             --
--- eval_statement s = case s of                                        --
---                      (LET (Var i) (ConstExpr c)) -> do              --
---                        table <- ask                                 --
---                        liftIO $ writeArray table i c                --
---                      (PRINT e) -> do                                --
---                        table <- ask                                 --
---                        liftIO $ putStrLn . show $ eval_expr e table --
---                      (END e) -> exitWith ExitSuccess                --
--------------------------------------------------------------------------
 main = do
   --args <- getArgs 
   --fileExists <- doesFileExist $ head args
