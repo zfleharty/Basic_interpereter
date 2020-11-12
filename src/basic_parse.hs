@@ -48,6 +48,7 @@ import Control.Monad.Trans.State
 import Control.Monad.Trans.Reader
 import Control.Monad.IO.Class
 import System.Exit
+import Data.Maybe
 -- ================================== --
 -- experimenting by Hoss              --
 import qualified Data.Text    as Text
@@ -140,8 +141,6 @@ edit_table sym val ((s,v):rest)= if sym == s
   then (s,val) : rest
   else (s,v) : (edit_table sym val rest )
 
-
-
 read_table ((_,v):[]) _ = v
 read_table ((s,v):rest) sym = if sym == s then v else read_table rest sym
 
@@ -149,6 +148,8 @@ write_to_table var val = modify (edit_table var val)
 -- write_to_table var val = do tab <- get
 --                             put $ edit_table tab var val
 --                             return ()
+
+symbol_array = array ('A', 'Z') [(c, 0) | c <- ['A'..'Z']]
 
 get_val var = do tab <- get
                  return (read_table tab var)
@@ -203,6 +204,29 @@ main = do
 
             let first_statement = (sorted_array ! 1)
 
+            -- experimenting here with a mutable array indexed by Chars
+            symbol_array <- newArray ('A','Z') 0 :: IO (IOArray Char Int)
+            a <- readArray symbol_array 'B'
+            writeArray symbol_array 'B' 64
+            b <- readArray symbol_array 'B'
+
+            -- experimenting here with an immutable array for storing
+            -- new vs. original line numbers
+            let new_to_old_line_nums = array bound [(ix ls, origLine ls) | ls <- sorted_lines]
+                  where sorted_lines = parse_lines $ tupled_lines (lines content)
+                        bound = (1, length sorted_lines)
+
+            -- clearly we can old line number from new:
+            let old_line_num = new_to_old_line_nums!3
+
+            -- can we (easily) get new line num from old?
+            -- Because the original line numbers should be unique, we
+            -- should be able to do something like this to find the new
+            -- line number for the old line #30:
+            -- let new_line_num = fst <$> find ((== 30) . snd) $ assocs new_to_old_line_nums
+            let test_junk = fst <$> (find ((== 30) . snd) $ assocs new_to_old_line_nums)
+            let new_line_num = fromJust test_junk
+
 --            let value = run_comp $ (let_test first_statement)
             
 
@@ -216,7 +240,14 @@ main = do
            -- let prgrm = Program symbol_table 1                                                                                         --
            --------------------------------------------------------------------------------------------------------------------------------
             
+            putStrLn $ "The sorted_array is: "
             putStrLn $ show sorted_array
+            putStrLn $ "1st statement is: " ++ (show first_statement)
+            putStrLn $ "Example mutable array elems are: " ++ show (a, b)
+            putStrLn $ "new_to_old_line_nums array is: " ++ (show (assocs new_to_old_line_nums))
+            putStrLn $ "The 3rd old line num was: " ++ (show old_line_num)
+            putStrLn $ "Index search result is: " ++ (show test_junk)
+            putStrLn $ "30's new_line_num is: " ++ (show new_line_num)
             
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
@@ -364,8 +395,8 @@ p_symbol = do {a <- sat (isAlpha); b <- many (sat var_char);
 var_expr    :: Parser Expression
 num_expr    :: Parser Expression
 expr        :: Parser Expression
-add_expr     :: Parser Expression
-mult_expr    :: Parser Expression
+add_expr    :: Parser Expression
+mult_expr   :: Parser Expression
 equals_expr :: Parser CompareExpr
 
 value       :: Parser Expression
@@ -458,6 +489,27 @@ test_02 = do
   putStrLn $ "str_of_stment = " ++ (show str_of_stment)
   let parsed_line_construction = Parsed_line {ix=1, origLine=10, sttment = str_of_stment}
   putStrLn $ "parsed_line_construction = " ++ (show parsed_line_construction)
+
+test_03 = do
+  let symbol_array = array ('A', 'Z') [(c, 0) | c <- ['A'..'Z']]
+  putStrLn $ show symbol_array
+  -- modify the entry for 'B' from 0 to 3:
+  arr <- (return $ symbol_array // [('B', 3)])
+  -- let symbol_array = symbol_array // [('B', 3)]
+  putStrLn $ show arr
+  -- putStrLn $ show symbol_array
+
+test_04 = do
+  -- arr <- newArray (1,10) 37 :: IO (IOArray Int Int)
+  arr <- newArray ('A','Z') 0 :: IO (IOArray Char Int)
+  -- a <- readArray arr 1
+  a <- readArray arr 'B'
+  -- writeArray arr 1 64
+  writeArray arr 'B' 64
+  -- b <- readArray arr 1
+  b <- readArray arr 'B'
+  print (a,b)
+  -- putStrLn $ show arr
   
 
 -- ====================================== --
