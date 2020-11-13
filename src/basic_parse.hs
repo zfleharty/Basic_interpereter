@@ -387,11 +387,11 @@ equals_expr = do
   y <- token expr
   return (EqualsExpr x y)
 
-value    = do
-  many (char '(')
-  expr <- (num_expr) +++ (var_expr)
-  many (char ')')
-  return expr
+value    = do{
+  many1 (char '(');
+  e <- expr;
+  many1 (char ')');
+  return e} +++  (num_expr) +++ (var_expr)
 
 
 -- ============================== --
