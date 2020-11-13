@@ -126,8 +126,12 @@ eval_statement s  = case s of
                         e' <- liftIO (eval_expr e table)
                         liftIO $ putStrLn . show $ e'
                       END -> liftIO $ exitWith ExitSuccess                
-
-
+                      INPUT (Var c) -> do
+                        table <- ask
+                        inp <- liftIO $ readLn
+                        liftIO $ writeArray table c (NumConst inp)
+              
+                     
 eval_line (Parsed_line i ol s) = do
   eval_sttmnt s 
 
@@ -135,15 +139,28 @@ create_program_array content = array bound [(ix ls, ls) | ls <- sorted_lines]
                                where sorted_lines = parse_lines $ tupled_lines (lines content)
                                      bound = (1, length sorted_lines)
 
-test_interp :: String -> IO ()
-test_interp file = do
+
+testing file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
-  let sorted_array = array bound [(ix ls, ls) | ls <-sorted_lines]
-        where sorted_lines = parse_lines $ tupled_lines (lines content)
-              bound = (1, length sorted_lines)
+  let sorted_array = create_program_array content
   symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
-  putStrLn $ show sorted_array
+  let inp_test = sorted_array ! 2
+  putStrLn $ show inp_test
+--  ((eval_line inp_test) symbol_table)
+--  readArray symbol_table ('H')
+
+test_interp :: String -> IO ()
+test_interp file = do
+  --file-handling
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+
+  --init
+  let sorted_array = create_program_array content
+  symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+
+  --evaluation
   sequence $ (`eval_line` symbol_table) <$> sorted_array
   putStrLn "hello"
                 
