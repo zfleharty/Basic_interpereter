@@ -143,6 +143,7 @@ test_interp file = do
         where sorted_lines = parse_lines $ tupled_lines (lines content)
               bound = (1, length sorted_lines)
   symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+  putStrLn $ show sorted_array
   sequence $ (`eval_line` symbol_table) <$> sorted_array
   putStrLn "hello"
                 

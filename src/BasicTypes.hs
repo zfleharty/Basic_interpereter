@@ -57,7 +57,7 @@ data Interpreter = Program {s_table :: [(Char,Constant)], program_counter:: Int}
 -------------------------------------------------------------
 
 instance Show Expression where
-  show (AddExpr e1 e2)  = (show e1) ++ " + " ++ (show e2)
+  show (AddExpr e1 e2)  = "("++(show e1) ++ " + " ++ (show e2) ++ ")"
   show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
   show (ConstExpr x)    = show x
   show (Variable x)     = show x
