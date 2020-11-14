@@ -25,6 +25,7 @@ data Expression     = AddExpr Expression Expression
                     | MultExpr Expression Expression
                     | ConstExpr {const::Constant}
                     | Variable {var::Var}
+                    | FxnExpr Function
 
 data CompareExpr    = EqualsExpr Expression Expression
 
@@ -57,10 +58,17 @@ data Interpreter = Program {s_table :: [(Char,Constant)], program_counter:: Int}
 -------------------------------------------------------------
 
 instance Show Expression where
-  show (AddExpr e1 e2)  = "("++(show e1) ++ " + " ++ (show e2) ++ ")"
+  show (AddExpr e1 e2)  = (show e1) ++ " + " ++ (show e2)
+  show (MultExpr e1@(AddExpr e11 e12) e2@(AddExpr e21 e22)) =
+    "(" ++ (show e1) ++ ")" ++ " * " ++ "(" ++ (show e2) ++ ")"
+  show (MultExpr e1@(AddExpr e11 e12) e2) = 
+    "(" ++ (show e1) ++ ")" ++ " * " ++ (show e2)
+  show (MultExpr e1 e2@(AddExpr e21 e22)) =
+    (show e1) ++ " * " ++ "(" ++ (show e2) ++ ")"
   show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
   show (ConstExpr x)    = show x
   show (Variable x)     = show x
+  show (FxnExpr x)      = show x
 
 instance Show Var where
   show (Var x) = show (NoQuotesChar x)
