@@ -24,10 +24,10 @@ data Statement      = FOR Var Expression Expression
 data Expression     = AddExpr Expression Expression
                     | MultExpr Expression Expression
                     | ConstExpr {const::Constant}
-                    | Variable {var::Var}
+                    | VarExpr {var::Var}
                     | FxnExpr Function
 
-data CompareExpr    = EqualsExpr Expression Expression
+data CompareExpr    = CompEqualsExpr Expression Expression
 
 data Var            = Var {character::Char}
 
@@ -40,10 +40,10 @@ data NegateExpr     = Neg PowerExpr
 data PowerExpr      = Pow Value PowerExpr
                     | PowValue Value
 
-data Value          = ValueParens Expression
-                    | ValueVar Var
-                    | ValueFxn Function
-                    | ValueConst Constant
+data Value          = ParensVal Expression
+                    | VarVal Var
+                    | FxnVal Function
+                    | ConstVal Constant
 
 data Function       = INT Expression
                     | RND Expression
@@ -67,7 +67,7 @@ instance Show Expression where
     (show e1) ++ " * " ++ "(" ++ (show e2) ++ ")"
   show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
   show (ConstExpr x)    = show x
-  show (Variable x)     = show x
+  show (VarExpr x)     = show x
   show (FxnExpr x)      = show x
 
 instance Show Var where
@@ -98,17 +98,17 @@ instance Show Statement where
   show (END)     = "END"
 
 instance Show CompareExpr where
-  show (EqualsExpr a b) =  show a ++ " == " ++ show b
+  show (CompEqualsExpr a b) =  show a ++ " == " ++ show b
 
 instance Show Constant where
   show (NumConst x) = show x
   show (StringConst x) = show (NoQuotes x)
 
 instance Show Value where
-  show (ValueVar x)   = show x
-  show (ValueFxn x)   = show x
-  show (ValueConst x) = show x
-  show (ValueParens x) = show x
+  show (VarVal x)   = show x
+  show (FxnVal x)   = show x
+  show (ConstVal x) = show x
+  show (ParensVal x) = show x
 
 instance Show Function where
   show (INT e)    = "INT(" ++ (show e) ++ ")"
