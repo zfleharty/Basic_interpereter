@@ -278,6 +278,16 @@ p_then = string "THEN"
 p_to :: Parser String
 p_to = string "TO"
 
+p_int :: Parser String
+p_int = string "INT"
+
+p_rnd :: Parser String
+p_rnd = string "RND"
+
+-- at least one space
+space1 :: Parser String
+space1 = many1 (sat isSpace)
+
 -- =========================================== --
 --  Parsers for particular Statements          --
 -- =========================================== --
@@ -351,38 +361,49 @@ p_symbol :: Parser Constant
 var_char :: Char -> Bool
 var_char_end :: Char -> Bool
 
-
 var_char x     = isAlphaNum x || elem x "_"
 
 var_char_end x = elem x "$%"
 
-
+notAlphanum        :: Parser Char
+notAlphanum         = sat (not.isAlphaNum)
   
 p_const   = p_number +++ p_symbol
 
 p_number = do {d <- token int; return (NumConst d)}
 
 p_var    = do {var <- token upper; return (Var var)}
+-- instead, make sure an upper case letter is followed by non-alpha char
+-- to ensure we're only dealing with single-letter vars
+-- p_var    = do {var <- upper; space1; return (Var var)}
 
 p_symbol = do {a <- sat (isAlpha); b <- many (sat var_char);
                c <- many (sat var_char_end); return (StringConst (a:(b++c)))}
 
 
-var_expr    :: Parser Expression
-num_expr    :: Parser Expression
-expr        :: Parser Expression
-add_expr    :: Parser Expression
-mult_expr   :: Parser Expression
-equals_expr :: Parser CompareExpr
+var_expr     :: Parser Expression
+num_expr     :: Parser Expression
+expr         :: Parser Expression
+add_expr     :: Parser Expression
+mult_expr    :: Parser Expression
+int_fxn_expr :: Parser Expression
+equals_expr  :: Parser CompareExpr
 
-value       :: Parser Expression
+value        :: Parser Expression
 
 
 var_expr = do {var <- token upper; return (Variable (Var var))}
+-- instead, can we make sure an upper case letter is followed by a
+-- non-alphanumeric character, so we don't end up consuming the
+-- the first letters of functions like INT or RND?
+-- to ensure we're only dealing with single-letter vars
+-- var_expr = do {var <- upper; notAlphanum; return (Variable (Var var))}
 
 num_expr = do {d <- token int; return (ConstExpr (NumConst d))}
 
-expr     = add_expr +++ mult_expr
+-- here try looking for int_fxn_expr FIRST so that the 1st letter(s)
+-- not mistaken for variables?
+expr     = int_fxn_expr +++ add_expr +++ mult_expr +++ add_expr_paren 
 
 add_expr  = do {
   x <- token mult_expr;
@@ -390,11 +411,27 @@ add_expr  = do {
   y <- token add_expr;
   return (AddExpr x y)} +++ mult_expr
 
+add_expr_paren = do {
+  token (char '(');
+  x <- token mult_expr;
+  token (char '+');
+  y <- token add_expr;
+  token (char ')');
+  return (AddExpr x y)} +++ mult_expr
+
 mult_expr = do {
   x <- token value;
   token (char '*');
   y <- token mult_expr;
   return (MultExpr x y)} +++ value
+
+int_fxn_expr = do {
+  token p_int;
+  token (char '(');
+  e <- token expr;
+  token (char ')');
+  return (FxnExpr (INT e))
+}
 
 -- set up for Expression = Expression
 -- may be too general for our needs and rely on inadeq expr parser
@@ -419,7 +456,7 @@ test_io_array = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
 
 test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4))))  
 test_expr2 = (MultExpr (Variable (Var 'A')) (AddExpr (Variable (Var 'B')) (Variable (Var 'C'))))
-
+test_expr3 = (AddExpr (Variable (Var 'A')) (AddExpr (Variable (Var 'B')) (Variable (Var 'C'))))
 
 test_number_1 = ConstExpr (NumConst 1)
 test_number_5 = ConstExpr (NumConst 5)
@@ -431,6 +468,10 @@ test_valuevar = ValueVar test_var_x
 -- test_valuefxn = ValueFxn (RND (Variable test_var_x))
 -- test_valueconst = ValueConst (NumConst 10)
 --test_expr_equals = EqualsExpr (Variable test_var_x) (ConstExpr (NumConst 10))
+test_int_fxn = INT (Variable test_var_x)
+test_int_fxn_02 = INT (AddExpr (Variable test_var_x) (Variable test_var_y))
+test_int_fxn_03 = INT test_expr1
+test_rnd_fxn = RND (Variable test_var_y)
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
   FORSTEP test_var_x test_number_5 test_number_10 test_number_1
