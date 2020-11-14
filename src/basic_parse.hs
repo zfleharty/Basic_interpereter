@@ -102,7 +102,7 @@ eval_expr' e    = do
            i2 <- liftIO $ r e2
            return $ i1 * i2
          ConstExpr c ->  return $ num c
-         Variable (Var v) -> do
+         VarExpr (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
   
@@ -309,10 +309,6 @@ statement =
 
 end_statement = do {_ <- token p_end; return END}
 
--- if_statement needs work: getting confused here with expressions
--- would be helpful to have a separate Boolean expression type
--- but our BASIC grammar doesn't seem to have that
--- Temporarily looking only for EqualsExpr in the IF
 if_statement = do
   token p_if
   boolExpr <- token equals_expr
@@ -392,18 +388,24 @@ equals_expr  :: Parser CompareExpr
 value        :: Parser Expression
 
 
-var_expr = do {var <- token upper; return (Variable (Var var))}
+var_expr = do {var <- token upper; return (VarExpr (Var var))}
 -- instead, can we make sure an upper case letter is followed by a
 -- non-alphanumeric character, so we don't end up consuming the
 -- the first letters of functions like INT or RND?
 -- to ensure we're only dealing with single-letter vars
--- var_expr = do {var <- upper; notAlphanum; return (Variable (Var var))}
+-- var_expr = do {var <- upper; notAlphanum; return (VarExpr (Var var))}
 
 num_expr = do {d <- token int; return (ConstExpr (NumConst d))}
 
+-- fxn_expr = do {}
+
 -- here try looking for int_fxn_expr FIRST so that the 1st letter(s)
 -- not mistaken for variables?
-expr     = int_fxn_expr +++ add_expr +++ mult_expr +++ add_expr_paren 
+expr     =   int_fxn_expr
+         +++ rnd_fxn_expr
+         +++ add_expr
+         +++ mult_expr
+         +++ add_expr_paren 
 
 add_expr  = do {
   x <- token mult_expr;
@@ -425,6 +427,9 @@ mult_expr = do {
   y <- token mult_expr;
   return (MultExpr x y)} +++ value
 
+-- For the INT() situations
+-- This and the rnd version might benefit from stricter linking
+-- of the fxn name to following parenthesis
 int_fxn_expr = do {
   token p_int;
   token (char '(');
@@ -433,19 +438,39 @@ int_fxn_expr = do {
   return (FxnExpr (INT e))
 }
 
+-- For the RND() situations
+-- This and the INT version might benefit from stricter linking
+-- of the fxn name to following parenthesis
+rnd_fxn_expr = do {
+  token p_rnd;
+  token (char '(');
+  e <- token expr;
+  token (char ')');
+  return (FxnExpr (RND e))
+}
+
 -- set up for Expression = Expression
 -- may be too general for our needs and rely on inadeq expr parser
 equals_expr = do
   x <- token expr
   token equal
   y <- token expr
-  return (EqualsExpr x y)
+  return (CompEqualsExpr x y)
+
+-- The arbitrary number of parens being consumed on either side
+-- is problematic here for some situations, such as INT(2 * (3+4)).
+-- See alternative further below.
+-- value    = do{
+--   many1 (char '(');
+--   e <- expr;
+--   many1 (char ')');
+--   return e} +++  (num_expr) +++ (var_expr)
 
 value    = do{
-  many1 (char '(');
+  char '(';
   e <- expr;
-  many1 (char ')');
-  return e} +++  (num_expr) +++ (var_expr)
+  char ')';
+  return e } +++  (num_expr) +++ (var_expr) +++ rnd_fxn_expr -- b/c a fxn is also a possible value?
 
 
 -- ============================== --
@@ -455,8 +480,8 @@ value    = do{
 test_io_array = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
 
 test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4))))  
-test_expr2 = (MultExpr (Variable (Var 'A')) (AddExpr (Variable (Var 'B')) (Variable (Var 'C'))))
-test_expr3 = (AddExpr (Variable (Var 'A')) (AddExpr (Variable (Var 'B')) (Variable (Var 'C'))))
+test_expr2 = (MultExpr (VarExpr (Var 'A')) (AddExpr (VarExpr (Var 'B')) (VarExpr (Var 'C'))))
+test_expr3 = (AddExpr (VarExpr (Var 'A')) (AddExpr (VarExpr (Var 'B')) (VarExpr (Var 'C'))))
 
 test_number_1 = ConstExpr (NumConst 1)
 test_number_5 = ConstExpr (NumConst 5)
@@ -464,14 +489,20 @@ test_number_10 = ConstExpr (NumConst 10)
 test_conststring = StringConst "ABC"
 test_var_x = Var 'X'
 test_var_y = Var 'Y'
-test_valuevar = ValueVar test_var_x
--- test_valuefxn = ValueFxn (RND (Variable test_var_x))
--- test_valueconst = ValueConst (NumConst 10)
---test_expr_equals = EqualsExpr (Variable test_var_x) (ConstExpr (NumConst 10))
-test_int_fxn = INT (Variable test_var_x)
-test_int_fxn_02 = INT (AddExpr (Variable test_var_x) (Variable test_var_y))
+test_valuevar = VarVal test_var_x
+-- test_valuefxn = FxnVal (RND (VarExpr test_var_x))
+-- test_valueconst = ConstVal (NumConst 10)
+--test_expr_equals = CompEqualsExpr (VarExpr test_var_x) (ConstExpr (NumConst 10))
+test_int_fxn_01 = INT (VarExpr test_var_x)
+test_int_fxn_02 = INT (AddExpr (VarExpr test_var_x) (VarExpr test_var_y))
 test_int_fxn_03 = INT test_expr1
-test_rnd_fxn = RND (Variable test_var_y)
+test_rnd_fxn_01 = RND (VarExpr test_var_y)
+test_rnd_fxn_02 = RND (AddExpr (VarExpr test_var_x) (VarExpr test_var_y))
+test_rnd_fxn_03 = RND (test_expr1)
+
+test_int_rnd_fxn_01 = INT (FxnExpr (RND test_number_5))
+test_int_rnd_fxn_02 = INT (MultExpr (FxnExpr (RND test_number_5)) (AddExpr (VarExpr (Var 'H')) test_number_1))
+
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
   FORSTEP test_var_x test_number_5 test_number_10 test_number_1
@@ -530,6 +561,40 @@ test_04 = do
   
   print (a,b)
   -- putStrLn $ show arr
+
+test_05 =  do
+  putStrLn ""
+  putStrLn $ "test_int_fxn_01: " ++ (show test_int_fxn_01)
+  let parsedExpr = parse expr (show test_int_fxn_01)
+  putStrLn $ "parse expr test_int_fxn_01: " ++ (show parsedExpr)
+  putStrLn ""
+  putStrLn $ "test_int_fxn_02: " ++ (show test_int_fxn_02)
+  let parsedExpr = parse expr (show test_int_fxn_02)
+  putStrLn $ "parse expr test_int_fxn_02: " ++ (show parsedExpr)
+  putStrLn ""
+  putStrLn $ "test_int_fxn_03: " ++ (show test_int_fxn_03)
+  let parsedExpr = parse expr (show test_int_fxn_03)
+  putStrLn $ "parse expr test_int_fxn_03: " ++ (show parsedExpr)
+  putStrLn ""
+  putStrLn $ "test_rnd_fxn_01: " ++ (show test_rnd_fxn_01)
+  let parsedExpr = parse expr (show test_rnd_fxn_01)
+  putStrLn $ "parse expr test_rnd_fxn_01: " ++ (show parsedExpr)
+  putStrLn ""
+  putStrLn $ "test_rnd_fxn_02: " ++ (show test_rnd_fxn_02)
+  let parsedExpr = parse expr (show test_rnd_fxn_02)
+  putStrLn $ "parse expr test_rnd_fxn_02: " ++ (show parsedExpr)
+  putStrLn ""
+  putStrLn $ "test_rnd_fxn_03: " ++ (show test_rnd_fxn_03)
+  let parsedExpr = parse expr (show test_rnd_fxn_03)
+  putStrLn $ "parse expr test_rnd_fxn_03: " ++ (show parsedExpr)
+  putStrLn ""
+  putStrLn $ "test_int_rnd_fxn_01: " ++ (show test_int_rnd_fxn_01)
+  let parsedExpr = parse expr (show test_int_rnd_fxn_01)
+  putStrLn $ "parse expr test_int_rnd_fxn_01: " ++ (show parsedExpr)
+  putStrLn ""
+  putStrLn $ "test_int_rnd_fxn_02: " ++ (show test_int_rnd_fxn_02)
+  let parsedExpr = parse expr (show test_int_rnd_fxn_02)
+  putStrLn $ "parse expr test_int_rnd_fxn_02: " ++ (show parsedExpr)
   
 
 -- ====================================== --
