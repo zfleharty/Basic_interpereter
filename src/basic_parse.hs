@@ -144,9 +144,12 @@ testing file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
   let sorted_array = create_program_array content
+  -- might the symbol table need to hold epxressions more generally
+  -- rather than just NumConst's?
   symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+  putStrLn $ "Entire sorted_array is: " ++ (show (assocs sorted_array))
   let inp_test = sorted_array ! 2
-  putStrLn $ show inp_test
+  putStrLn $ "Example item from sorted_array: " ++ show inp_test
 --  ((eval_line inp_test) symbol_table)
 --  readArray symbol_table ('H')
 
