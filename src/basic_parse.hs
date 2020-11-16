@@ -34,6 +34,7 @@
 {----------------------------------------------------------------------}
 import Data.Array.IO
 import System.IO
+import Data.Map hiding ((!),assocs)
 import Parselib
 import Data.Char
 import System.Environment
@@ -178,65 +179,20 @@ main = do
                   where sorted_lines = parse_lines $ tupled_lines (lines content)
                         bound = (1, length sorted_lines)
             let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
-
-            let run_comp = (\f -> (evalState f) symbol_table)
-
-            let first_statement = (sorted_array ! 1)
-
-            -- experimenting here with a mutable array indexed by Chars
-            symbol_array <- newArray ('A','Z') 0 :: IO (IOArray Char Int)
-            a <- readArray symbol_array 'B'
-            writeArray symbol_array 'B' 64
-            b <- readArray symbol_array 'B'
-
-            -- experimenting here with an immutable array for storing
-            -- new vs. original line numbers
-            let new_to_old_line_nums = array bound [(ix ls, origLine ls) | ls <- sorted_lines]
-                  where sorted_lines = parse_lines $ tupled_lines (lines content)
-                        bound = (1, length sorted_lines)
-
-            -- clearly we can old line number from new:
-            let old_line_num = new_to_old_line_nums!3
-
-            -- can we (easily) get new line num from old?
-            -- Because the original line numbers should be unique, we
-            -- should be able to do something like this to find the new
-            -- line number for the old line #30:
-            -- let new_line_num = fst <$> find ((== 30) . snd) $ assocs new_to_old_line_nums
-            let test_junk = fst <$> (find ((== 30) . snd) $ assocs new_to_old_line_nums)
-            let new_line_num = fromJust test_junk
-
---            let value = run_comp $ (let_test first_statement)
-            
-
-  --          putStrLn $  show value
-
-           --------------------------------------------------------------------------------------------------------------------------------
-           --  let symbol_table = (array ('A','Z') [ (i,newIORef (NumConst 0))| i <- ['A'..'Z']])                                        --
-           --  let f = (runReaderT $ (write_and_read_example 'A' (NumConst 3))) ::  Array Char (IO (IORef Constant)) -> IO (IO Constant) --
-           --  value <- f symbol_table                                                                                                   --
-           -- let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]                                                                   --
-           -- let prgrm = Program symbol_table 1                                                                                         --
-           --------------------------------------------------------------------------------------------------------------------------------
-            
-            putStrLn $ "The sorted_array is: "
-            putStrLn $ show sorted_array
-            putStrLn $ "1st statement is: " ++ (show first_statement)
-            putStrLn $ "Example mutable array elems are: " ++ show (a, b)
-            putStrLn $ "new_to_old_line_nums array is: " ++ (show (assocs new_to_old_line_nums))
-            putStrLn $ "The 3rd old line num was: " ++ (show old_line_num)
-            putStrLn $ "Index search result is: " ++ (show test_junk)
-            putStrLn $ "30's new_line_num is: " ++ (show new_line_num)
-            
+            let line_table_array = fmap (\ls -> (origLine ls, ix ls)) sorted_array
+            let line_table = let (min,max) = bounds line_table_array
+                             in [line_table_array ! i | i <- [min..max] ]
+            let line_map = fromList line_table
+            putStrLn $ show line_map
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
 -- ================================== --
 -- experimenting by Hoss              --
-main2 = do
-    ls <- fmap Text.lines (Text.readFile "foo.bas")
-    do 
-      let ls' = map Text.unpack ls
-      putStrLn $ show ls'
+-- main2 = do
+--     ls <- fmap Text.lines (Text.readFile "foo.bas")
+--     do 
+--       let ls' = map Text.unpack ls
+--       putStrLn $ show ls'
 -- =================================== --
 
 

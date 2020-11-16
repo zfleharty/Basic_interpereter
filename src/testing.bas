@@ -1,0 +1,4 @@
+LET X = RND(56)
+LET X = RND(56)
+PRINT X
+END
