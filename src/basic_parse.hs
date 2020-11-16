@@ -330,12 +330,20 @@ for_statement = do
   toExpr <- token expr
   return (FOR var fromExpr toExpr)
 
+-- let_statement = do
+--   _ <- token p_let
+--   var <- token p_var
+--   _ <- token equal
+--   val <- token p_const
+--   return (LET var (ConstExpr val))
+
+-- working to upgrade:
 let_statement = do
   _ <- token p_let
   var <- token p_var
   _ <- token equal
-  val <- token p_const
-  return (LET var (ConstExpr val))
+  assigned <- token expr
+  return (LET var assigned)
 
 next_statement = do
   token p_next
@@ -602,7 +610,37 @@ test_05 =  do
   putStrLn $ "parse expr test_int_rnd_fxn_03: " ++ (show parsedExpr)
   putStrLn ""
 
-  
+-- tests of statement parsing
+test_06 = do
+  putStrLn ""
+  putStrLn " TESTS OF STATEMENT PARSING "
+  putStrLn "============================"
+  putStrLn ""
+  let parsedExpr = parse statement "INPUT H"
+  putStrLn $ "parse statement \"INPUT H\": " ++ (show parsedExpr)
+  putStrLn ""
+  let parsedExpr = parse statement "LET X = INT(RND(5)*H+1)"
+  putStrLn $ "parse statement \"LET X = INT(RND(5)*H+1)\": " ++ 
+             (show parsedExpr)
+  putStrLn ""
+  let parsedExpr = parse statement "PRINT X"
+  putStrLn $ "parse statement \"PRINT X\": " ++ (show parsedExpr)
+  putStrLn ""
+  let parsedExpr = parse statement "FOR I = 1 TO H"
+  putStrLn $ "parse statement \"FOR I = 1 TO H\": " ++ (show parsedExpr)
+  putStrLn ""
+  let parsedExpr = parse statement "PRINT I"
+  putStrLn $ "parse statement \"PRINT I\": " ++ (show parsedExpr)
+  putStrLn ""
+  let parsedExpr = parse statement "IF I = X THEN 60"
+  putStrLn $ "parse statement \"IF I = X THEN 60\": " ++ (show parsedExpr)
+  putStrLn ""
+  let parsedExpr = parse statement "NEXT I"
+  putStrLn $ "parse statement \"NEXT I\": " ++ (show parsedExpr)
+  putStrLn ""
+  let parsedExpr = parse statement "END"
+  putStrLn $ "parse statement \"END\": " ++ (show parsedExpr)
+
 
 -- ====================================== --
 --  A Reminder of (some) of the Grammar   --
