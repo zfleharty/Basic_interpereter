@@ -98,7 +98,7 @@ instance Show Statement where
   show (END)     = "END"
 
 instance Show CompareExpr where
-  show (CompEqualsExpr a b) =  show a ++ " == " ++ show b
+  show (CompEqualsExpr a b) =  show a ++ " = " ++ show b
 
 instance Show Constant where
   show (NumConst x) = show x
