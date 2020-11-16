@@ -401,11 +401,11 @@ num_expr = do {d <- token int; return (ConstExpr (NumConst d))}
 
 -- here try looking for int_fxn_expr FIRST so that the 1st letter(s)
 -- not mistaken for variables?
-expr     =   int_fxn_expr
-         +++ rnd_fxn_expr
-         +++ add_expr
+expr     =   add_expr
          +++ mult_expr
-         +++ add_expr_paren 
+         +++ add_expr_paren
+         +++ rnd_fxn_expr
+         +++ int_fxn_expr
 
 add_expr  = do {
   x <- token mult_expr;
@@ -470,7 +470,7 @@ value    = do{
   char '(';
   e <- expr;
   char ')';
-  return e } +++  (num_expr) +++ (var_expr) +++ rnd_fxn_expr -- b/c a fxn is also a possible value?
+  return e } +++  rnd_fxn_expr +++ int_fxn_expr +++ (num_expr) +++ (var_expr)-- b/c a fxn is also a possible value?
 
 
 -- ============================== --
@@ -502,6 +502,7 @@ test_rnd_fxn_03 = RND (test_expr1)
 
 test_int_rnd_fxn_01 = INT (FxnExpr (RND test_number_5))
 test_int_rnd_fxn_02 = INT (MultExpr (FxnExpr (RND test_number_5)) (AddExpr (VarExpr (Var 'H')) test_number_1))
+test_int_rnd_fxn_03 = INT (AddExpr (MultExpr (FxnExpr (RND test_number_5)) (VarExpr (Var 'H'))) (test_number_1))
 
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
@@ -595,6 +596,12 @@ test_05 =  do
   putStrLn $ "test_int_rnd_fxn_02: " ++ (show test_int_rnd_fxn_02)
   let parsedExpr = parse expr (show test_int_rnd_fxn_02)
   putStrLn $ "parse expr test_int_rnd_fxn_02: " ++ (show parsedExpr)
+  putStrLn ""
+  putStrLn $ "test_int_rnd_fxn_03: " ++ (show test_int_rnd_fxn_03)
+  let parsedExpr = parse expr (show test_int_rnd_fxn_03)
+  putStrLn $ "parse expr test_int_rnd_fxn_03: " ++ (show parsedExpr)
+  putStrLn ""
+
   
 
 -- ====================================== --
