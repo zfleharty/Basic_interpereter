@@ -294,8 +294,8 @@ space1 = many1 (sat isSpace)
 
 statement       :: Parser Statement
 end_statement   :: Parser Statement
--- for_statement   :: Parser Statement
---if_statement    :: Parser Statement
+for_statement   :: Parser Statement
+if_statement    :: Parser Statement
 input_statement :: Parser Statement
 let_statement   :: Parser Statement
 -- next_statement  :: Parser Statement
