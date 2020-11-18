@@ -31,7 +31,7 @@ data CompareExpr    = CompEqualsExpr Expression Expression
 
 data Var            = Var {character::Char}
 
-data Constant       = NumConst {num::Int}
+data Constant       = NumConst {num::Float}
                     | StringConst {str::String}
 
 data NegateExpr     = Neg PowerExpr
