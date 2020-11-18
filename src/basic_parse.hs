@@ -38,6 +38,7 @@ import Data.Map hiding ((!),assocs)
 import Parselib
 import Data.Char
 import System.Environment
+import System.Random
 import Data.Ix()
 import Data.Array
 import System.Directory
@@ -87,10 +88,12 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
 
 eval_expr       :: Expression -> (IOArray Char Constant) -> IO (Float)
 eval_expr e arr = (runReaderT $ eval_expr' e) arr
-  
+
+
+
 
 eval_expr'      :: Expression -> ReaderT (IOArray Char Constant) IO (Float)
-eval_expr' e    = do
+eval_expr' e = do
   tab <- ask
   let r = (\e' -> (runReaderT $ eval_expr' e') tab)
     in case e of
@@ -106,11 +109,20 @@ eval_expr' e    = do
          FxnExpr (INT e') -> do
            frac <- liftIO $ r e'
            return ((fromIntegral .floor) frac)
+         FxnExpr (RND e') -> do
+           frac <- liftIO $ r e'
+           let gen = mkStdGen (10)
+           if frac > 1             
+             then do
+             let (result,_) = uniformR (0, (frac - 1)) gen 
+             return (fromIntegral.ceiling $ result)
+             else do
+             let (result,_) = uniformR (0::Float,1::Float) gen
+             return result
          VarExpr (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
   
-
 
 -----------------------------------------------------------------------------
 --------------------- Evaluate Statement types -----------------------------
@@ -498,6 +510,25 @@ test_program_list_02 = ["30 LET C = 4",
                      "40 PRINT A * (B + C)",
                      "50 END"]
 
+testRND (FxnExpr (RND e)) arr = do
+  frac <- liftIO $ eval_expr e arr
+  let gen = mkStdGen (10)
+  if frac > 1             
+    then do
+    let (result,_) = randomR (0, (frac - 1)) gen
+    putStrLn $ show result
+    return (fromIntegral.ceiling $ result)
+    else do
+    let (result,_) = uniformR (0::Float,1::Float) gen
+    return result
+
+
+test_rnd = do
+  arr <- test_io_array
+  let nums = [1,2,3,4,5,6,7,8,9,10,11,11.3,11.4,11.5,12.4,12.5,12.7,14,0]
+  let es = Data.List.map (FxnExpr . RND . ConstExpr . NumConst) nums
+  sequence $ (`eval_expr` arr) <$> es
+  
 test_02 = do
   let lines = tupled_lines test_program_list_02
   putStrLn $ "lines = " ++ (show lines)
@@ -576,6 +607,23 @@ test_05 =  do
   putStrLn $ "parse expr test_int_rnd_fxn_03: " ++ (show parsedExpr)
   putStrLn ""
 
+
+data Program = ProgInfo {gen:: StdGen}
+
+
+run_test = do
+  let arr = array ('A','Z') [(x,(NumConst 0)) | x <- ['A'..'Z']]
+  let gen = ProgInfo (mkStdGen 10)
+  (runReader $ testing_fxn 'A') arr
+
+
+--testing_fxn :: Char -> StateT Program (ReaderT (IOArray Char Constant) IO Float)
+testing_fxn e = do
+  table <- ask
+  let value = (table ! e)
+  return $ num value
+
+
 -- tests of statement parsing
 test_06 = do
   putStrLn ""
@@ -607,43 +655,4 @@ test_06 = do
   let parsedExpr = parse statement "END"
   putStrLn $ "parse statement \"END\": " ++ (show parsedExpr)
 
-
--- ====================================== --
---  A Reminder of (some) of the Grammar   --
--- ====================================== --
-
-{-
-ID             = {letter}
-String         = '"'{String Chars}*'"'
-Integer        = {digit}+
-
-<Statement>   ::= END
-                | LET <Variable> '=' <Expression>
-                | PRINT <Print list>
-                | PRINT TAB '(' <Expression> ')' <Print list>
-
-<Variable>    ::= ID
-                | <Array>
-
--}
-
-
--- ========================================================= --
---  Some Notes on Variables and Dat Types In Chipmunk Basic  --
--- (see http://www.nicholson.com/rhn/basic/basic.man.html    --
--- ========================================================= --
-
-{- VARIABLES and DATA TYPES
-
-  Variable names can be up to 31 significant characters in
-  length, starting with a letter, and optionally followed by
-  letters, digits, underscores, or an ending dollar sign or
-  percent character.  Variable names are case insensitive.
-  Variables can hold floating point values (IEEE double),
-  short integers, or strings of up to 254 characters.  If a
-  variable name ends with a "$" character, it holds a string
-  value, otherwise it holds numeric values.  If a variable
-  name ends with the "%" character it may be limited to
-  holding only integer values from -32768 to 32767.
--}
 
