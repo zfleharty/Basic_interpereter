@@ -51,11 +51,8 @@ import Control.Monad.IO.Class
 import System.Exit
 import Data.Maybe
 -- ================================== --
--- experimenting by Hoss              --
-import qualified Data.Text    as Text
-import qualified Data.Text.IO as Text
 import BasicTypes
--- =================================== --
+-- ================================== --
 
 tuple_line :: Parser Int
 tuple_line = do {num <- int; return num}
@@ -103,6 +100,9 @@ eval_expr' e    = do
            i2 <- liftIO $ r e2
            return $ i1 * i2
          ConstExpr c ->  return $ num c
+         FxnExpr (INT e') -> do
+           frac <- liftIO $ r e'
+           return ((fromIntegral . floor) frac)
          VarExpr (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
