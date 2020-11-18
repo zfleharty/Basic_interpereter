@@ -51,11 +51,8 @@ import Control.Monad.IO.Class
 import System.Exit
 import Data.Maybe
 -- ================================== --
--- experimenting by Hoss              --
-import qualified Data.Text    as Text
-import qualified Data.Text.IO as Text
 import BasicTypes
--- =================================== --
+-- ================================== --
 
 tuple_line :: Parser Int
 tuple_line = do {num <- int; return num}
@@ -81,9 +78,9 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
 
------------------------------------------------------------------------------
---------------------- Evaluate Expression types -----------------------------
------------------------------------------------------------------------------
+------------------------------------------------------------------------
+--------------------- Evaluate Expression types ------------------------
+------------------------------------------------------------------------
 
 eval_expr       :: Expression -> (IOArray Char Constant) -> IO (Float)
 eval_expr e arr = (runReaderT $ eval_expr' e) arr
@@ -112,9 +109,9 @@ eval_expr' e    = do
   
 
 
------------------------------------------------------------------------------
---------------------- Evaluate Statement types -----------------------------
------------------------------------------------------------------------------
+------------------------------------------------------------------------
+--------------------- Evaluate Statement types -------------------------
+------------------------------------------------------------------------
 
 eval_sttmnt       :: Statement -> (IOArray Char Constant) -> IO ()
 eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             
@@ -151,9 +148,28 @@ testing file = do
   -- might the symbol table need to hold epxressions more generally
   -- rather than just NumConst's?
   symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
-  putStrLn $ "Entire sorted_array is: " ++ (show (assocs sorted_array))
+  putStrLn ""
+  putStrLn $ "(1) Entire sorted_array is: "
+  putStrLn $ (show (assocs sorted_array))
+  putStrLn ""
   let inp_test = sorted_array ! 2
-  putStrLn $ "Example item from sorted_array: " ++ show inp_test
+  putStrLn $ "(2) Example item from sorted_array: "
+  putStrLn $ show inp_test
+  putStrLn ""
+  -- notice that symbol_table has already been partially unwrapped?
+  x <- readArray symbol_table 'H'
+  putStrLn $ "(3) readArray symbol_table 'H' = " ++ (show x)
+  putStrLn ""
+  y <- (getElems symbol_table)
+  putStrLn $ "(4) symbol_table elems: "
+  putStrLn $ show y
+  putStrLn ""
+  -- change elem in symbol_table?
+  writeArray symbol_table 'H' (NumConst 1)
+  y <- (getElems symbol_table)
+  putStrLn $ "(5) After changing symbol_table entry H, symbol_table elems: "
+  putStrLn $ show y
+  putStrLn ""
 --  ((eval_line inp_test) symbol_table)
 --  readArray symbol_table ('H')
 
@@ -192,16 +208,6 @@ main = do
             let line_map = fromList line_table
             putStrLn $ show line_map
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
-
--- ================================== --
--- experimenting by Hoss              --
--- main2 = do
---     ls <- fmap Text.lines (Text.readFile "foo.bas")
---     do 
---       let ls' = map Text.unpack ls
---       putStrLn $ show ls'
--- =================================== --
-
 
 
   
@@ -607,6 +613,23 @@ test_06 = do
   let parsedExpr = parse statement "END"
   putStrLn $ "parse statement \"END\": " ++ (show parsedExpr)
 
+
+--  TESTING SOME LISTS, ARRAYS, ETC
+list_01 = ["Crosby", "Stills", "Nash", "Young"]
+listToArray :: [a] -> Array Int a
+listToArray ls = listArray (0, length ls - 1) ls
+listToIOArray :: [a] -> IO (IOArray Int a)
+listToIOArray ls = newListArray (0, length ls - 1) ls
+arr = listToArray list_01
+ioarr = listToIOArray list_01
+ioarr2 = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+-- Inside ghci
+-- use x <- ioarr; readArray x 3 to get the 3rd item …
+-- use y <- ioarr2; readArray y 'B' to get item assoc'd with key 'B'
+-- in ghci can do this: x <- ioarr
+-- then readArray x 3 to get 3rd item,
+-- or getElems x to print the list of items, producing m [[Char]]
+-- instead can do ioarr >>= getElems, which produces IO [[Char]]
 
 -- ====================================== --
 --  A Reminder of (some) of the Grammar   --
