@@ -266,7 +266,7 @@ test_program_list_02 = ["30 LET C = 4",
 
 
 
-eval_expr2 arr prog e = (runStateT $ (runReaderT $ eval_expr2' e) arr) prog
+eval_expr2 arr e prog = (runStateT $ (runReaderT $ eval_expr2' e) arr) prog
 
 eval_expr2'   :: Expression -> ReaderT (IOArray Char Constant) (StateT Program IO) (Float)
 eval_expr2' e = do
@@ -302,19 +302,55 @@ eval_expr2' e = do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
 
+
+eval_sttmnt2       :: Statement -> Program -> (IOArray Char Constant) -> IO ()
+eval_sttmnt2 s p arr = (runReaderT $ eval_statement2 s p) arr             
+
+eval_statement2    :: Statement -> Program -> ReaderT (IOArray Char Constant) IO ()
+eval_statement2 s p = case s of                                        
+                      (LET (Var i) e) -> do              
+                        table <- ask
+                        (c,np) <- liftIO (eval_expr2 table e p)
+                        liftIO $ writeArray table i (NumConst c)                
+                      (PRINT e) -> do                                
+                        table <- ask
+                        (e',np) <- liftIO (eval_expr2 table e p)
+                        liftIO $ putStrLn . show $ e'
+                      END -> liftIO $ exitWith ExitSuccess                
+                      INPUT (Var c) -> do
+                        table <- ask
+                        inp <- liftIO $ readLn
+                        liftIO $ writeArray table c (NumConst inp)
+              
+
+
+test_eval_stmnt s arr = do
+  let p = ProgInfo (mkStdGen 10)
+  eval_sttmnt2 s p arr
+
 test_eval_expr e = do
   arr <- test_io_array
   let p = ProgInfo (mkStdGen 10)
-  eval_expr2 arr p e
+  eval_expr2 arr e p
 
+
+test_s1 = do
+  arr <- test_io_array
+  let s1 = LET test_var_y test_number_10
+  let s2 = LET test_var_x (FxnExpr test_rnd_fxn_01)
+  test_eval_stmnt s1 arr
+  test_eval_stmnt s2 arr
+  y <- readArray arr 'Y'
+  x <- readArray arr 'X'
+  putStrLn $ show (x,y) -- Expect (rand,10)
 
 test_rnd = do
   let e = FxnExpr . RND . ConstExpr . NumConst $ 10
   arr <- test_io_array
   let p = ProgInfo (mkStdGen 400)
-  (v1,prog1) <- eval_expr2 arr p e
-  (v2,prog2) <- eval_expr2 arr prog1 e
-  (v3,prog3) <- eval_expr2 arr prog2 e
+  (v1,prog1) <- eval_expr2 arr e p 
+  (v2,prog2) <- eval_expr2 arr e prog1 
+  (v3,prog3) <- eval_expr2 arr e prog2 
   return $ v1:v2:v3:[]
   
   
