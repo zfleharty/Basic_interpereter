@@ -45,6 +45,7 @@ import System.Directory
 import Data.List
 import Data.Array()
 import Data.IORef
+import Control.Monad.Trans
 import Control.Monad
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Reader
@@ -122,7 +123,8 @@ eval_expr' e = do
          VarExpr (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
-  
+
+
 
 -----------------------------------------------------------------------------
 --------------------- Evaluate Statement types -----------------------------
@@ -147,7 +149,14 @@ eval_statement s  = case s of
                         inp <- liftIO $ readLn
                         liftIO $ writeArray table c (NumConst inp)
               
-                     
+
+
+
+
+
+
+
+                      
 eval_line (Parsed_line i ol s) = do
   eval_sttmnt s 
 
@@ -523,11 +532,64 @@ testRND (FxnExpr (RND e)) arr = do
     return result
 
 
+
+eval_expr2 arr prog e = (runStateT $ (runReaderT $ eval_expr2' e) arr) prog
+
+eval_expr2'   :: Expression -> ReaderT (IOArray Char Constant) (StateT Program IO) (Float)
+eval_expr2' e = do
+  tab <- ask
+  prog <- lift get
+  let r = (\e' -> (runReaderT $ eval_expr' e') tab)
+    in case e of
+         AddExpr e1 e2 -> do
+           i1 <- liftIO $ r e1
+           i2 <- liftIO $ r e2
+           return $ i1 + i2
+         MultExpr e1 e2 -> do
+           i1 <- liftIO $ r e1
+           i2 <- liftIO $ r e2
+           return $ i1 * i2
+         ConstExpr c ->  return $ num c
+         FxnExpr (INT e') -> do
+           frac <- liftIO $ r e'
+           return ((fromIntegral .floor) frac)
+         FxnExpr (RND e') -> do
+           frac <- liftIO $ r e'
+           let sgen = gen prog
+           if frac > 1             
+             then do
+             let (result,newGen) = uniformR (0, (frac - 1)) sgen
+             lift $ put (ProgInfo newGen)
+             return (fromIntegral.ceiling $ result)
+             else do
+             let (result,newGen) = uniformR (0::Float,1::Float) sgen
+             lift $ put (ProgInfo newGen)
+             return result
+         VarExpr (Var v) -> do
+           constValue <- liftIO $ (readArray tab v)
+           return $ (num constValue)
+
+
+
+
 test_rnd = do
+  let e = FxnExpr . RND . ConstExpr . NumConst $ 10
   arr <- test_io_array
-  let nums = [1,2,3,4,5,6,7,8,9,10,11,11.3,11.4,11.5,12.4,12.5,12.7,14,0]
-  let es = Data.List.map (FxnExpr . RND . ConstExpr . NumConst) nums
-  sequence $ (`eval_expr` arr) <$> es
+  let p = ProgInfo (mkStdGen 400)
+  (v1,prog1) <- eval_expr2 arr p e
+  (v2,prog2) <- eval_expr2 arr prog1 e
+  (v3,prog3) <- eval_expr2 arr prog2 e
+  return $ v1:v2:v3:[]
+  
+  
+
+-- run_test_rnd = do                                                    --
+--   arr <- test_io_array                                               --
+--   let nums = Data.List.take 20 (repeat 10)                           --
+--   let es = Data.List.map (FxnExpr . RND . ConstExpr . NumConst) nums --
+--   let prog = ProgInfo (mkStdGen 10)                                  --
+  
+
   
 test_02 = do
   let lines = tupled_lines test_program_list_02
@@ -611,17 +673,32 @@ test_05 =  do
 data Program = ProgInfo {gen:: StdGen}
 
 
-run_test = do
-  let arr = array ('A','Z') [(x,(NumConst 0)) | x <- ['A'..'Z']]
-  let gen = ProgInfo (mkStdGen 10)
-  (runReader $ testing_fxn 'A') arr
+
+run_test = do                                                    --
+  let arr = array ('A','Z') [(x,(NumConst 2)) | x <- ['A'..'Z']] --
+  let gen = ProgInfo (mkStdGen 10)                               --
+  f <- (runReaderT $ ((runStateT (testing_fxn2 'A')) gen)) arr
+  return f
 
 
---testing_fxn :: Char -> StateT Program (ReaderT (IOArray Char Constant) IO Float)
+testing_fxn2 :: Char -> StateT Program (ReaderT (Array Char Constant) IO) Float
+testing_fxn2 e = do
+  prog <- get
+  table <- lift ask
+  let r = num (table ! e)
+  let (value,newGen) = uniformR (0,r) (gen prog)
+  put (ProgInfo newGen)
+  return $ value
+
+
+testing_fxn :: Char -> ReaderT (Array Char Constant) (StateT Program IO) Float
 testing_fxn e = do
   table <- ask
-  let value = (table ! e)
-  return $ num value
+  prog <- lift get
+  let r = num (table ! e)
+  let (value,newGen) = uniformR (0,r) (gen prog)
+--  lift $ put $ ProgInfo newGen
+  return $ value
 
 
 -- tests of statement parsing
