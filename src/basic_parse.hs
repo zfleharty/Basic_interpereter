@@ -36,28 +36,21 @@ import Data.Array.IO
 import System.IO
 import Data.Map hiding ((!),assocs)
 import Parselib
-import Data.Char
-import System.Environment
 import System.Random
 import Data.Ix()
 import Data.Array
-import System.Directory
 import Data.List
 import Data.Array()
-import Data.IORef
 import Control.Monad.Trans
-import Control.Monad
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Reader
-import Control.Monad.IO.Class
 import System.Exit
-import Data.Maybe
 import Parser
+import BasicTypes
 -- ================================== --
 -- experimenting by Hoss              --
 import qualified Data.Text    as Text
 import qualified Data.Text.IO as Text
-import BasicTypes
 -- =================================== --
 
 tuple_line :: Parser Int
@@ -90,8 +83,6 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
 
 eval_expr       :: Expression -> (IOArray Char Constant) -> IO (Float)
 eval_expr e arr = (runReaderT $ eval_expr' e) arr
-
-
 
 
 eval_expr'      :: Expression -> ReaderT (IOArray Char Constant) IO (Float)
@@ -150,12 +141,6 @@ eval_statement s  = case s of
                         inp <- liftIO $ readLn
                         liftIO $ writeArray table c (NumConst inp)
               
-
-
-
-
-
-
 
                       
 eval_line (Parsed_line i ol s) = do
@@ -413,13 +398,9 @@ test_05 =  do
   putStrLn ""
 
 
-
-
-
-
-run_test = do                                                    --
-  let arr = array ('A','Z') [(x,(NumConst 2)) | x <- ['A'..'Z']] --
-  let gen = ProgInfo (mkStdGen 10)                               --
+run_test = do                                                    
+  let arr = array ('A','Z') [(x,(NumConst 2)) | x <- ['A'..'Z']] 
+  let gen = ProgInfo (mkStdGen 10)                               
   f <- (runReaderT $ ((runStateT (testing_fxn2 'A')) gen)) arr
   return f
 
