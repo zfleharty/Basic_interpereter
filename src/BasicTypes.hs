@@ -1,15 +1,7 @@
-module BasicTypes
-  (Statement(..),
-   Expression(..),
-   CompareExpr(..),
-   Constant(..),
-   NegateExpr(..),
-   PowerExpr(..),
-   Value(..),
-   Function(..),
-   Var(..),
-   Line_statement(..),
-   Interpreter(..)) where
+module BasicTypes where
+
+
+import System.Random
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 data Statement      = FOR Var Expression Expression
@@ -50,6 +42,8 @@ data Function       = INT Expression
 
 data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String}
                     | Parsed_line {ix:: Int, origLine:: Int, sttment:: Statement}
+
+data Program = ProgInfo {gen:: StdGen}
 
 data Interpreter = Program {s_table :: [(Char,Constant)], program_counter:: Int}
 

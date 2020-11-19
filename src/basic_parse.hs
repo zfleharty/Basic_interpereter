@@ -519,18 +519,6 @@ test_program_list_02 = ["30 LET C = 4",
                      "40 PRINT A * (B + C)",
                      "50 END"]
 
-testRND (FxnExpr (RND e)) arr = do
-  frac <- liftIO $ eval_expr e arr
-  let gen = mkStdGen (10)
-  if frac > 1             
-    then do
-    let (result,_) = randomR (0, (frac - 1)) gen
-    putStrLn $ show result
-    return (fromIntegral.ceiling $ result)
-    else do
-    let (result,_) = uniformR (0::Float,1::Float) gen
-    return result
-
 
 
 eval_expr2 arr prog e = (runStateT $ (runReaderT $ eval_expr2' e) arr) prog
@@ -569,7 +557,10 @@ eval_expr2' e = do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
 
-
+test_eval_expr e = do
+  arr <- test_io_array
+  let p = ProgInfo (mkStdGen 10)
+  eval_expr2 arr p e
 
 
 test_rnd = do
@@ -582,14 +573,6 @@ test_rnd = do
   return $ v1:v2:v3:[]
   
   
-
--- run_test_rnd = do                                                    --
---   arr <- test_io_array                                               --
---   let nums = Data.List.take 20 (repeat 10)                           --
---   let es = Data.List.map (FxnExpr . RND . ConstExpr . NumConst) nums --
---   let prog = ProgInfo (mkStdGen 10)                                  --
-  
-
   
 test_02 = do
   let lines = tupled_lines test_program_list_02
@@ -670,7 +653,7 @@ test_05 =  do
   putStrLn ""
 
 
-data Program = ProgInfo {gen:: StdGen}
+
 
 
 
