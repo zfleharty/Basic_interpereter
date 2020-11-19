@@ -81,59 +81,55 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
 --------------------- Evaluate Expression types -----------------------------
 -----------------------------------------------------------------------------
 
-eval_expr       :: Expression -> (IOArray Char Constant) -> IO (Float)
-eval_expr e arr = (runReaderT $ eval_expr' e) arr
+eval_expr arr e prog = (runStateT $ (runReaderT $ eval_expr2' e) arr) prog
 
-
-eval_expr'      :: Expression -> ReaderT (IOArray Char Constant) IO (Float)
+eval_expr'   :: Expression -> ReaderT (IOArray Char Constant) (StateT Program IO) (Float)
 eval_expr' e = do
   tab <- ask
-  let r = (\e' -> (runReaderT $ eval_expr' e') tab)
+  prog <- lift get
+  let r = (\e' -> (runStateT $ (runReaderT $ eval_expr' e') tab) prog)
     in case e of
          AddExpr e1 e2 -> do
-           i1 <- liftIO $ r e1
-           i2 <- liftIO $ r e2
+           (i1,_) <- liftIO $ r e1
+           (i2,_) <- liftIO $ r e2
            return $ i1 + i2
          MultExpr e1 e2 -> do
-           i1 <- liftIO $ r e1
-           i2 <- liftIO $ r e2
+           (i1,_) <- liftIO $ r e1
+           (i2,_) <- liftIO $ r e2
            return $ i1 * i2
          ConstExpr c ->  return $ num c
          FxnExpr (INT e') -> do
-           frac <- liftIO $ r e'
+           (frac,_) <- liftIO $ r e'
            return ((fromIntegral .floor) frac)
          FxnExpr (RND e') -> do
-           frac <- liftIO $ r e'
-           let gen = mkStdGen (10)
+           (frac,_) <- liftIO $ r e'
+           let sgen = gen prog
            if frac > 1             
              then do
-             let (result,_) = uniformR (0, (frac - 1)) gen 
+             let (result,newGen) = uniformR (0, (frac - 1)) sgen
+             lift $ put (ProgInfo newGen)
              return (fromIntegral.ceiling $ result)
              else do
-             let (result,_) = uniformR (0::Float,1::Float) gen
+             let (result,newGen) = uniformR (0::Float,1::Float) sgen
+             lift $ put (ProgInfo newGen)
              return result
          VarExpr (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
 
 
+eval_sttmnt       :: Statement -> Program -> (IOArray Char Constant) -> IO ()
+eval_sttmnt s p arr = (runReaderT $ eval_statement2 s p) arr             
 
------------------------------------------------------------------------------
---------------------- Evaluate Statement types -----------------------------
------------------------------------------------------------------------------
-
-eval_sttmnt       :: Statement -> (IOArray Char Constant) -> IO ()
-eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             
-
-eval_statement    :: Statement -> ReaderT (IOArray Char Constant) IO ()
-eval_statement s  = case s of                                        
+eval_statement    :: Statement -> Program -> ReaderT (IOArray Char Constant) IO ()
+eval_statement s p = case s of                                        
                       (LET (Var i) e) -> do              
                         table <- ask
-                        c <- liftIO (eval_expr e table)
+                        (c,np) <- liftIO (eval_expr2 table e p)
                         liftIO $ writeArray table i (NumConst c)                
                       (PRINT e) -> do                                
                         table <- ask
-                        e' <- liftIO (eval_expr e table)
+                        (e',np) <- liftIO (eval_expr2 table e p)
                         liftIO $ putStrLn . show $ e'
                       END -> liftIO $ exitWith ExitSuccess                
                       INPUT (Var c) -> do
@@ -143,8 +139,8 @@ eval_statement s  = case s of
               
 
                       
-eval_line (Parsed_line i ol s) = do
-  eval_sttmnt s 
+eval_line (Parsed_line i ol s) p = do
+  eval_sttmnt s p
 
 create_program_array content = array bound [(ix ls, ls) | ls <- sorted_lines]
                                where sorted_lines = parse_lines $ tupled_lines (lines content)
@@ -163,24 +159,6 @@ testing file = do
   putStrLn $ "Example item from sorted_array: " ++ show inp_test
 --  ((eval_line inp_test) symbol_table)
 --  readArray symbol_table ('H')
-
-
-
-
-test_interp :: String -> IO ()
-test_interp file = do
-  --file-handling
-  handle <- openFile file ReadMode
-  content <- hGetContents handle
-
-  --init
-  let sorted_array = create_program_array content
-  symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
-
-  --evaluation
-  sequence $ (`eval_line` symbol_table) <$> sorted_array
-  putStrLn "hello"
-                
 
 
 
