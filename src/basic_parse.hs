@@ -272,22 +272,22 @@ eval_expr2'   :: Expression -> ReaderT (IOArray Char Constant) (StateT Program I
 eval_expr2' e = do
   tab <- ask
   prog <- lift get
-  let r = (\e' -> (runReaderT $ eval_expr' e') tab)
+  let r = (\e' -> (runStateT $ (runReaderT $ eval_expr2' e') tab) prog)
     in case e of
          AddExpr e1 e2 -> do
-           i1 <- liftIO $ r e1
-           i2 <- liftIO $ r e2
+           (i1,_) <- liftIO $ r e1
+           (i2,_) <- liftIO $ r e2
            return $ i1 + i2
          MultExpr e1 e2 -> do
-           i1 <- liftIO $ r e1
-           i2 <- liftIO $ r e2
+           (i1,_) <- liftIO $ r e1
+           (i2,_) <- liftIO $ r e2
            return $ i1 * i2
          ConstExpr c ->  return $ num c
          FxnExpr (INT e') -> do
-           frac <- liftIO $ r e'
+           (frac,_) <- liftIO $ r e'
            return ((fromIntegral .floor) frac)
          FxnExpr (RND e') -> do
-           frac <- liftIO $ r e'
+           (frac,_) <- liftIO $ r e'
            let sgen = gen prog
            if frac > 1             
              then do
