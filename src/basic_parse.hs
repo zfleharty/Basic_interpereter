@@ -95,7 +95,7 @@ eval_comp_expr' e = do
 
 eval_expr arr e = (runReaderT $ eval_expr' e) arr
 
-eval_expr'   :: Expression -> ReaderT (IOArray Char Constant) IO (Float)
+eval_expr'   :: Expression -> ReaderT (IOArray Char Expression) IO (Float)
 eval_expr' e = do
   tab <- ask
   let r = (\e' -> (runReaderT $ eval_expr' e') tab)
@@ -111,7 +111,7 @@ eval_expr' e = do
            i2 <- liftIO $ r e2
            return $ i1 * i2           
 
-         ConstExpr c ->  return $ num c
+         ConstExpr c ->  return $ c
 
          FxnExpr (INT e') -> do
            frac <- liftIO $ r e'
@@ -132,15 +132,15 @@ eval_expr' e = do
            return $ (num constValue)
 
 
-eval_sttmnt       :: Statement -> (IOArray Char Constant) -> IO ()
+eval_sttmnt       :: Statement -> (IOArray Char Expression) -> IO ()
 eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             
 
-eval_statement    :: Statement -> ReaderT (IOArray Char Constant) IO ()
+eval_statement    :: Statement -> ReaderT (IOArray Char Expression) IO ()
 eval_statement s= case s of                                        
                       (LET (Var i) e) -> do              
                         table <- ask
                         c <- liftIO (eval_expr table e)
-                        liftIO $ writeArray table i (NumConst c)                
+                        liftIO $ writeArray table i (ConstExpr c)                
                       (PRINT e) -> do                                
                         table <- ask
                         e' <- liftIO (eval_expr table e)
@@ -149,7 +149,7 @@ eval_statement s= case s of
                       INPUT (Var c) -> do
                         table <- ask
                         inp <- liftIO $ readLn
-                        liftIO $ writeArray table c (NumConst inp)
+                        liftIO $ writeArray table c (ConstExpr inp)
                         
                                     
 eval_line (Parsed_line i ol s)= do
@@ -164,7 +164,7 @@ test_interp file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
   let sorted_array = create_program_array content
-  symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
   sequence $ (`eval_line` symbol_table) <$> sorted_array
 
 
@@ -196,22 +196,21 @@ main = do
 --  some definitions for testing  --
 -- ============================== --
 
-test_io_array = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+test_io_array = newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
 
-test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4.3))))  
+test_expr1 = (MultExpr (ConstExpr 2) (AddExpr (ConstExpr ( 3)) (ConstExpr ( 4.3))))  
 test_expr2 = (MultExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
 test_expr3 = (AddExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
 
-test_number_1 = ConstExpr (NumConst 1)
-test_number_5 = ConstExpr (NumConst 5)
-test_number_10 = ConstExpr (NumConst 10)
-test_conststring = StringConst "ABC"
+test_number_1 = ConstExpr ( 1)
+test_number_5 = ConstExpr ( 5)
+test_number_10 = ConstExpr ( 10)
 test_var_x = Var 'X'
 test_var_y = Var 'Y'
 test_valuevar = VarVal test_var_x
 -- test_valuefxn = FxnVal (RND (VarExpr test_var_x))
--- test_valueconst = ConstVal (NumConst 10)
---test_expr_equals = CompEqualsExpr (VarExpr test_var_x) (ConstExpr (NumConst 10))
+-- test_valueconst = ConstVal ( 10)
+--test_expr_equals = CompEqualsExpr (VarExpr test_var_x) (ConstExpr ( 10))
 test_int_fxn_01 = INT (test_var_x)
 test_int_fxn_02 = INT (AddExpr (test_var_x) (test_var_y))
 test_int_fxn_03 = INT test_expr1
@@ -226,7 +225,7 @@ test_int_rnd_fxn_03 = INT (AddExpr (MultExpr (FxnExpr (RND test_number_5)) ((Var
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
   FORSTEP test_var_x test_number_5 test_number_10 test_number_1
---test_statement_if = IF test_expr_equals (NumConst 100)
+--test_statement_if = IF test_expr_equals ( 100)
 test_statement_input = INPUT test_var_y
 test_statement_let = LET test_var_x test_number_5
 test_statement_next = NEXT test_var_x

@@ -122,10 +122,10 @@ print_statement = do {token p_print; e <- expr; return (PRINT e)}
 --  Statement components                       --
 -- =========================================== --
 
-p_const  :: Parser Constant
-p_number :: Parser Constant
+p_const  :: Parser Expression
+p_number :: Parser Expression
 p_var    :: Parser Expression
-p_symbol :: Parser Constant
+--p_symbol :: Parser Expression
 
 var_char :: Char -> Bool
 var_char_end :: Char -> Bool
@@ -137,17 +137,17 @@ var_char_end x = elem x "$%"
 notAlphanum        :: Parser Char
 notAlphanum         = sat (not.isAlphaNum)
   
-p_const   = p_number +++ p_symbol
+p_const   = p_number -- +++ p_symbol
 
-p_number = do {d <- token int; return (NumConst (realToFrac d))}
+p_number = do {d <- token int; return (ConstExpr (realToFrac d))}
 
 p_var    = do {var <- token upper; return (Var var)}
 -- instead, make sure an upper case letter is followed by non-alpha char
 -- to ensure we're only dealing with single-letter vars
 -- p_var    = do {var <- upper; space1; return (Var var)}
 
-p_symbol = do {a <- sat (isAlpha); b <- many (sat var_char);
-               c <- many (sat var_char_end); return (StringConst (a:(b++c)))}
+--p_symbol = do {a <- sat (isAlpha); b <- many (sat var_char);
+--               c <- many (sat var_char_end); return (StringConst (a:(b++c)))}
 
 
 var_expr     :: Parser Expression
@@ -168,7 +168,7 @@ var_expr = do {var <- token upper; return ((Var var))}
 -- to ensure we're only dealing with single-letter vars
 -- var_expr = do {var <- upper; notAlphanum; return (VarExpr (Var var))}
 
-num_expr = do {d <- token int; return (ConstExpr (NumConst $ realToFrac d))}
+num_expr = do {d <- token int; return (ConstExpr (realToFrac d))}
 
 -- fxn_expr = do {}
 

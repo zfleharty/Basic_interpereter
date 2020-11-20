@@ -6,7 +6,7 @@ import System.Random
 {-# LANGUAGE MultiParamTypeClasses #-}
 data Statement      = FOR Expression Expression Expression
                     | FORSTEP Expression Expression Expression Expression
-                    | IF CompareExpr Constant
+                    | IF CompareExpr Expression
                     | INPUT Expression
                     | LET Expression Expression
                     | NEXT Expression
@@ -15,16 +15,18 @@ data Statement      = FOR Expression Expression Expression
 
 data Expression     = AddExpr Expression Expression
                     | MultExpr Expression Expression
-                    | ConstExpr {const::Constant}
+                    | ConstExpr {num::Float}
                     | Var {id:: Char}
                     | FxnExpr Function
+
+--                    | CompExpr Expression Expression (Expression -> Expression -> Bool)
 
 data CompareExpr    = CompEqualsExpr Expression Expression
 
 --data Var            = Var {character::Char}
 
-data Constant       = NumConst {num::Float}
-                    | StringConst {str::String}
+--data Constant       = NumConst {num::Float}
+--                    | StringConst {str::String}
 
 data NegateExpr     = Neg PowerExpr
                     | Pexpr PowerExpr -- fix this!
@@ -35,7 +37,7 @@ data PowerExpr      = Pow Value PowerExpr
 data Value          = ParensVal Expression
                     | VarVal Expression
                     | FxnVal Function
-                    | ConstVal Constant
+                    | ConstVal Expression
 
 data Function       = INT Expression
                     | RND Expression
@@ -45,7 +47,7 @@ data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String}
 
 data Program = ProgInfo {gen:: StdGen}
 
-data Interpreter = Program {s_table :: [(Char,Constant)], program_counter:: Int}
+data Interpreter = Program {s_table :: [(Char,Expression)], program_counter:: Int}
 
 -------------------------------------------------------------
 -- Derived instances for Data types                        --
@@ -91,9 +93,9 @@ instance Show Statement where
 instance Show CompareExpr where
   show (CompEqualsExpr a b) =  show a ++ " = " ++ show b
 
-instance Show Constant where
-  show (NumConst x) = show x
-  show (StringConst x) = show (NoQuotes x)
+-- instance Show Constant where
+--   show (NumConst x) = show x
+--   show (StringConst x) = show (NoQuotes x)
 
 instance Show Value where
   show (VarVal x)   = show x
