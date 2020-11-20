@@ -114,11 +114,11 @@ eval_expr' e = do
 
          ConstExpr c ->  return $ c
 
-         FxnExpr (INT e') -> do
+         FxnExpr "INT" e' -> do
            frac <- liftIO $ r e'
            return ((fromIntegral .floor) frac)
 
-         FxnExpr (RND e') -> do
+         FxnExpr "RND" e' -> do
            frac <- liftIO $ r e'
            if frac > 1             
              then do
@@ -133,10 +133,10 @@ eval_expr' e = do
            return $ (num constValue)
 
 
-eval_sttmnt       :: Statement -> (Environment) -> IO ()
+eval_sttmnt       :: Statement -> Environment -> IO ()
 eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             
 
-eval_statement    :: Statement -> ReaderT (Environment) IO ()
+eval_statement    :: Statement -> ReaderT Environment IO ()
 eval_statement s= case s of                                        
                       (LET (Var i) e) -> do              
                         env <- ask
@@ -166,6 +166,7 @@ test_interp file = do
   content <- hGetContents handle
   let sorted_array = create_program_array content
   symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let environment = Program symbol_table
   sequence $ (`eval_line` (Program symbol_table)) <$> sorted_array
 
 
@@ -219,10 +220,9 @@ test_rnd_fxn_01 = RND (test_var_y)
 test_rnd_fxn_02 = RND (AddExpr (test_var_x) (test_var_y))
 test_rnd_fxn_03 = RND (test_expr1)
 
-test_int_rnd_fxn_01 = INT (FxnExpr (RND test_number_5))
-test_int_rnd_fxn_02 = INT (MultExpr (FxnExpr (RND test_number_5)) (AddExpr ((Var 'H')) test_number_1))
-test_int_rnd_fxn_03 = INT (AddExpr (MultExpr (FxnExpr (RND test_number_5)) ((Var 'H'))) (test_number_1))
-
+test_int_rnd_fxn_01 = FxnExpr "INT" (FxnExpr "RND" test_number_5)
+test_int_rnd_fxn_02 = FxnExpr "INT" (MultExpr (FxnExpr "RND" test_number_5) (AddExpr ((Var 'H')) test_number_1))
+test_int_rnd_fxn_03 = FxnExpr "INT" (AddExpr (MultExpr (FxnExpr "RND" test_number_5) (Var 'H')) (test_number_1))
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
   FORSTEP test_var_x test_number_5 test_number_10 test_number_1

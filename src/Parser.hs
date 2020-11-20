@@ -208,7 +208,7 @@ int_fxn_expr = do {
   token (char '(');
   e <- token expr;
   token (char ')');
-  return (FxnExpr (INT e))
+  return (FxnExpr "INT" e)
 }
 
 -- For the RND() situations
@@ -219,7 +219,7 @@ rnd_fxn_expr = do {
   token (char '(');
   e <- token expr;
   token (char ')');
-  return (FxnExpr (RND e))
+  return (FxnExpr "RND" e)
 }
 
 -- set up for Expression = Expression

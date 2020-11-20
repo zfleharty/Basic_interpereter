@@ -18,7 +18,7 @@ data Expression     = AddExpr Expression Expression
                     | MultExpr Expression Expression
                     | ConstExpr {num::Float}
                     | Var {id:: Char}
-                    | FxnExpr Function
+                    | FxnExpr String Expression
 
 
 
@@ -64,7 +64,7 @@ instance Show Expression where
   show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
   show (ConstExpr x)    = show x
   show (Var x)          = show x
-  show (FxnExpr x)      = show x
+  show (FxnExpr s x)      = s ++ " " ++ show x
 
 instance Eq Line_statement where
   a == b = (line_num a) == (line_num b)
