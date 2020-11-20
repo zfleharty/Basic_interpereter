@@ -4,24 +4,24 @@ module BasicTypes where
 import System.Random
 
 {-# LANGUAGE MultiParamTypeClasses #-}
-data Statement      = FOR Var Expression Expression
-                    | FORSTEP Var Expression Expression Expression
+data Statement      = FOR Expression Expression Expression
+                    | FORSTEP Expression Expression Expression Expression
                     | IF CompareExpr Constant
-                    | INPUT Var
-                    | LET Var Expression
-                    | NEXT Var
+                    | INPUT Expression
+                    | LET Expression Expression
+                    | NEXT Expression
                     | PRINT Expression
                     | END
 
 data Expression     = AddExpr Expression Expression
                     | MultExpr Expression Expression
                     | ConstExpr {const::Constant}
-                    | VarExpr {var::Var}
+                    | Var {id:: Char}
                     | FxnExpr Function
 
 data CompareExpr    = CompEqualsExpr Expression Expression
 
-data Var            = Var {character::Char}
+--data Var            = Var {character::Char}
 
 data Constant       = NumConst {num::Float}
                     | StringConst {str::String}
@@ -33,7 +33,7 @@ data PowerExpr      = Pow Value PowerExpr
                     | PowValue Value
 
 data Value          = ParensVal Expression
-                    | VarVal Var
+                    | VarVal Expression
                     | FxnVal Function
                     | ConstVal Constant
 
@@ -61,11 +61,8 @@ instance Show Expression where
     (show e1) ++ " * " ++ "(" ++ (show e2) ++ ")"
   show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
   show (ConstExpr x)    = show x
-  show (VarExpr x)     = show x
+  show (Var x)     = show x
   show (FxnExpr x)      = show x
-
-instance Show Var where
-  show (Var x) = show (NoQuotesChar x)
 
 instance Eq Line_statement where
   a == b = (line_num a) == (line_num b)

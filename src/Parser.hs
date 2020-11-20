@@ -124,7 +124,7 @@ print_statement = do {token p_print; e <- expr; return (PRINT e)}
 
 p_const  :: Parser Constant
 p_number :: Parser Constant
-p_var    :: Parser Var
+p_var    :: Parser Expression
 p_symbol :: Parser Constant
 
 var_char :: Char -> Bool
@@ -161,7 +161,7 @@ equals_expr  :: Parser CompareExpr
 value        :: Parser Expression
 
 
-var_expr = do {var <- token upper; return (VarExpr (Var var))}
+var_expr = do {var <- token upper; return ((Var var))}
 -- instead, can we make sure an upper case letter is followed by a
 -- non-alphanumeric character, so we don't end up consuming the
 -- the first letters of functions like INT or RND?

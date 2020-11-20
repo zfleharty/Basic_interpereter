@@ -127,7 +127,7 @@ eval_expr' e = do
              rand <- randomRIO (0::Float,1::Float)
              return rand
 
-         VarExpr (Var v) -> do
+         (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
 
@@ -152,14 +152,28 @@ eval_statement s= case s of
                         liftIO $ writeArray table c (NumConst inp)
                         
                                     
-eval_line (Parsed_line i ol s) p = do
-  eval_sttmnt s p
+eval_line (Parsed_line i ol s)= do
+  eval_sttmnt s
 
 create_program_array content = array bound [(ix ls, ls) | ls <- sorted_lines]
                                where sorted_lines = parse_lines $ tupled_lines (lines content)
                                      bound = (1, length sorted_lines)
 
 
+test_interp file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  let sorted_array = create_program_array content
+  symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+  sequence $ (`eval_line` symbol_table) <$> sorted_array
+
+
+test_parser file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  let sorted_array = create_program_array content
+  putStrLn $ show sorted_array
+  
 main = do
   --args <- getArgs 
   --fileExists <- doesFileExist $ head args
@@ -185,8 +199,8 @@ main = do
 test_io_array = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
 
 test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4.3))))  
-test_expr2 = (MultExpr (VarExpr (Var 'A')) (AddExpr (VarExpr (Var 'B')) (VarExpr (Var 'C'))))
-test_expr3 = (AddExpr (VarExpr (Var 'A')) (AddExpr (VarExpr (Var 'B')) (VarExpr (Var 'C'))))
+test_expr2 = (MultExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
+test_expr3 = (AddExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
 
 test_number_1 = ConstExpr (NumConst 1)
 test_number_5 = ConstExpr (NumConst 5)
@@ -198,16 +212,16 @@ test_valuevar = VarVal test_var_x
 -- test_valuefxn = FxnVal (RND (VarExpr test_var_x))
 -- test_valueconst = ConstVal (NumConst 10)
 --test_expr_equals = CompEqualsExpr (VarExpr test_var_x) (ConstExpr (NumConst 10))
-test_int_fxn_01 = INT (VarExpr test_var_x)
-test_int_fxn_02 = INT (AddExpr (VarExpr test_var_x) (VarExpr test_var_y))
+test_int_fxn_01 = INT (test_var_x)
+test_int_fxn_02 = INT (AddExpr (test_var_x) (test_var_y))
 test_int_fxn_03 = INT test_expr1
-test_rnd_fxn_01 = RND (VarExpr test_var_y)
-test_rnd_fxn_02 = RND (AddExpr (VarExpr test_var_x) (VarExpr test_var_y))
+test_rnd_fxn_01 = RND (test_var_y)
+test_rnd_fxn_02 = RND (AddExpr (test_var_x) (test_var_y))
 test_rnd_fxn_03 = RND (test_expr1)
 
 test_int_rnd_fxn_01 = INT (FxnExpr (RND test_number_5))
-test_int_rnd_fxn_02 = INT (MultExpr (FxnExpr (RND test_number_5)) (AddExpr (VarExpr (Var 'H')) test_number_1))
-test_int_rnd_fxn_03 = INT (AddExpr (MultExpr (FxnExpr (RND test_number_5)) (VarExpr (Var 'H'))) (test_number_1))
+test_int_rnd_fxn_02 = INT (MultExpr (FxnExpr (RND test_number_5)) (AddExpr ((Var 'H')) test_number_1))
+test_int_rnd_fxn_03 = INT (AddExpr (MultExpr (FxnExpr (RND test_number_5)) ((Var 'H'))) (test_number_1))
 
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
