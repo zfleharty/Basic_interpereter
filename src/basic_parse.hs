@@ -95,10 +95,11 @@ eval_comp_expr' e = do
 
 eval_expr arr e = (runReaderT $ eval_expr' e) arr
 
-eval_expr'   :: Expression -> ReaderT (IOArray Char Expression) IO (Float)
+eval_expr'   :: Expression -> ReaderT (Environment) IO (Float)
 eval_expr' e = do
-  tab <- ask
-  let r = (\e' -> (runReaderT $ eval_expr' e') tab)
+  env <- ask
+  let tab = s_table env
+  let r = (\e' -> (runReaderT $ eval_expr' e') env)
     in case e of
 
          AddExpr e1 e2 -> do
@@ -132,24 +133,24 @@ eval_expr' e = do
            return $ (num constValue)
 
 
-eval_sttmnt       :: Statement -> (IOArray Char Expression) -> IO ()
+eval_sttmnt       :: Statement -> (Environment) -> IO ()
 eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             
 
-eval_statement    :: Statement -> ReaderT (IOArray Char Expression) IO ()
+eval_statement    :: Statement -> ReaderT (Environment) IO ()
 eval_statement s= case s of                                        
                       (LET (Var i) e) -> do              
-                        table <- ask
-                        c <- liftIO (eval_expr table e)
-                        liftIO $ writeArray table i (ConstExpr c)                
+                        env <- ask
+                        c <- liftIO (eval_expr env e)
+                        liftIO $ writeArray (s_table env) i (ConstExpr c)                
                       (PRINT e) -> do                                
-                        table <- ask
-                        e' <- liftIO (eval_expr table e)
+                        env <- ask
+                        e' <- liftIO (eval_expr env e)
                         liftIO $ putStrLn . show $ e'
                       END -> liftIO $ exitWith ExitSuccess                
                       INPUT (Var c) -> do
-                        table <- ask
+                        env <- ask
                         inp <- liftIO $ readLn
-                        liftIO $ writeArray table c (ConstExpr inp)
+                        liftIO $ writeArray (s_table env) c (ConstExpr inp)
                         
                                     
 eval_line (Parsed_line i ol s)= do
@@ -165,7 +166,7 @@ test_interp file = do
   content <- hGetContents handle
   let sorted_array = create_program_array content
   symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  sequence $ (`eval_line` symbol_table) <$> sorted_array
+  sequence $ (`eval_line` (Program symbol_table)) <$> sorted_array
 
 
 test_parser file = do
