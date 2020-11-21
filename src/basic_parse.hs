@@ -47,6 +47,7 @@ import Control.Monad.Trans.Reader
 import System.Exit
 import Parser
 import BasicTypes
+import Data.Tuple
 -- ================================== --
 -- experimenting by Hoss              --
 import qualified Data.Text    as Text
@@ -70,10 +71,11 @@ parse_lines' lines = [let p_line = (lmap,((fst . head) stment))
                                   lmap = (line_num ls,n)
                       in p_line | (n,ls) <- zip [1..] (sort (tupled_lines lines))]
 
-create_environment content table  = Program table program (fromList lm)
+create_environment content table  = Program table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
   where (lm,sa) = unzip $ parse_lines' (lines content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
-        
+        list_prog = assocs program
+        f_n = [(i,find_next v list_prog) | (i,(FOR v _ _)) <- list_prog]
 
 -- parse_lines      Processes a list of Line_Statements, typically
 --                  produced by the tupled_lines fxn and which appear
@@ -204,24 +206,24 @@ main = do
   --args <- getArgs 
   --fileExists <- doesFileExist $ head args
   if True -------------------- fileExists __________________Changed for testing inside interactive GHCI without command line args
-    then do handle <- openFile ("foo.bas") ReadMode
+    then do handle <- openFile ("test.bas") ReadMode
             content <- hGetContents handle
 
             table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression) 
-            let (Program tab sorted_ar linemap) = create_environment content table
+            let (Program tab sorted_ar linemap f_n n_f) = create_environment content table
 
+            putStrLn $ show f_n
+            putStrLn $ show n_f
             putStrLn $ show linemap
             putStrLn $ show sorted_ar
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
 
 
-
--- find_next _ [] = 0
--- find_next var ((Parsed_line i _ s):rest) = case s of
---                                           NEXT var -> i
---                                           NEXT _ -> find_next var rest
---                                           _ -> find_next var rest
+find_next _ [] = 0
+find_next var ((i,s):rest) = case s of
+                               NEXT var -> i
+                               _ -> find_next var rest
 
 
 -- ============================== --

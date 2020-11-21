@@ -45,12 +45,24 @@ data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String}
 
 data Environment = Program {s_table        :: IOArray Char Expression,
                             basic_program  :: Array Int Statement,
-                            line_map       :: Map Int Int}
+                            line_map       :: Map Int Int,
+                            for_next       :: Map Int Int,
+                            next_for       :: Map Int Int}
 
 
 -------------------------------------------------------------
 -- Derived instances for Data types                        --
 -------------------------------------------------------------
+
+
+instance Show Environment where
+  show (Program _ program mapping fNMap _ ) =
+    "Environment{\n" ++
+    "Symbol_table: " ++ "NO SHOW INSTANCE FOR IOARRAY YET\n" ++
+    "Program:      " ++ show program ++ "\n" ++
+    "line_map:     " ++ show mapping ++ "\n" ++
+    "FOR->Next:    " ++ show fNMap ++ "}"
+    
 
 
 
