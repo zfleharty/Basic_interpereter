@@ -3,6 +3,8 @@ module BasicTypes where
 
 import System.Random
 import Data.Array.IO
+import Data.Array
+import Data.Map hiding ((!),assocs)
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 data Statement      = FOR Expression Expression Expression
@@ -41,7 +43,9 @@ data Function       = INT Expression
 data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String}
                     | Parsed_line {ix:: Int, origLine:: Int, sttment:: Statement}
 
-data Environment = Program {s_table :: IOArray Char Expression}
+data Environment = Program {s_table        :: IOArray Char Expression,
+                            basic_program  :: Array Int Line_statement,
+                            line_map       :: Map Int Int}
 
 
 -------------------------------------------------------------

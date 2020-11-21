@@ -77,6 +77,14 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
 
+create_program_array content = array bound [(ix ls, ls) | ls <- sorted_lines]
+                               where sorted_lines = parse_lines $ tupled_lines (lines content)
+                                     bound = (1, length sorted_lines)
+
+map_lines sorted_array = let (min,max) = bounds line_table in fromList [line_table ! i | i <- [min..max]]
+  where line_table = fmap (\ls -> (origLine ls, ix ls)) sorted_array
+
+
 -----------------------------------------------------------------------------
 --------------------- Evaluate Expression types -----------------------------
 -----------------------------------------------------------------------------
@@ -152,30 +160,40 @@ eval_statement s= case s of
                         inp <- liftIO $ readLn
                         liftIO $ writeArray (s_table env) c (ConstExpr inp)
                         
-                                    
+interpreter   :: Int -> ReaderT Environment IO ()
+interpreter n = do
+  env@(Program {
+          s_table=tab,
+          basic_program=program,
+          line_map=lines
+          }) <- ask
+
+  let Parsed_line{sttment=s} = program ! n
+
+  case s of                                        
+    (LET (Var i) e) -> do              
+      c <- liftIO (eval_expr env e)
+      liftIO $ writeArray (s_table env) i (ConstExpr c)
+      interpreter (n+1)
+      
+    (PRINT e) -> do
+      e' <- liftIO (eval_expr env e)
+      liftIO $ putStrLn . show $ e'
+      interpreter (n+1)
+
+    END -> liftIO $ exitWith ExitSuccess                
+
+    INPUT (Var c) -> do
+      inp <- liftIO $ readLn
+      liftIO $ writeArray (s_table env) c (ConstExpr inp)
+      interpreter (n+1)
+
+    
+                          
 eval_line (Parsed_line i ol s)= do
   eval_sttmnt s
 
-create_program_array content = array bound [(ix ls, ls) | ls <- sorted_lines]
-                               where sorted_lines = parse_lines $ tupled_lines (lines content)
-                                     bound = (1, length sorted_lines)
 
-
-test_interp file = do
-  handle <- openFile file ReadMode
-  content <- hGetContents handle
-  let sorted_array = create_program_array content
-  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let environment = Program symbol_table
-  sequence $ (`eval_line` (Program symbol_table)) <$> sorted_array
-
-
-test_parser file = do
-  handle <- openFile file ReadMode
-  content <- hGetContents handle
-  let sorted_array = create_program_array content
-  putStrLn $ show sorted_array
-  
 main = do
   --args <- getArgs 
   --fileExists <- doesFileExist $ head args
@@ -183,13 +201,9 @@ main = do
     then do handle <- openFile ("foo.bas") ReadMode
             content <- hGetContents handle
             let sorted_array = create_program_array content
-            
-            let line_table_array = fmap (\ls -> (origLine ls, ix ls)) sorted_array
-            let line_table = let (min,max) = bounds line_table_array
-                             in [line_table_array ! i | i <- [min..max] ]
+            let lineMap = map_lines sorted_array
 
-            let line_map = fromList line_table
-            putStrLn $ show line_map
+            putStrLn $ show lineMap
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
   
@@ -197,6 +211,34 @@ main = do
 -- ============================== --
 --  some definitions for testing  --
 -- ============================== --
+
+test_interp file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  let sorted_array = create_program_array content
+  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = Program symbol_table sorted_array (map_lines sorted_array)
+  
+
+  sequence $ (`eval_line` (env)) <$> sorted_array
+
+
+test_parser file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  let sorted_array = create_program_array content
+  putStrLn $ show sorted_array
+
+get_test_material file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  let sorted_array = create_program_array content
+  let lineMap = map_lines sorted_array
+  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  return (Program symbol_table sorted_array lineMap)
+
+
+
 
 test_io_array = newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
 
