@@ -77,7 +77,7 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
 
-create_program_array content = array bound [(ix ls, ls) | ls <- sorted_lines]
+create_program_array content = (sorted_lines,array bound [(ix ls, ls) | ls <- sorted_lines])
                                where sorted_lines = parse_lines $ tupled_lines (lines content)
                                      bound = (1, length sorted_lines)
 
@@ -200,13 +200,21 @@ main = do
   if True -------------------- fileExists __________________Changed for testing inside interactive GHCI without command line args
     then do handle <- openFile ("foo.bas") ReadMode
             content <- hGetContents handle
-            let sorted_array = create_program_array content
+            let (_,sorted_array) = create_program_array content
             let lineMap = map_lines sorted_array
 
             putStrLn $ show lineMap
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
-  
+
+
+
+find_next _ [] = 0
+find_next var ((Parsed_line i _ s):rest) = case s of
+                                          NEXT var -> i
+                                          NEXT _ -> find_next var rest
+                                          _ -> find_next var rest
+
 
 -- ============================== --
 --  some definitions for testing  --
@@ -215,7 +223,7 @@ main = do
 test_interp file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
-  let sorted_array = create_program_array content
+  let (_,sorted_array) = create_program_array content
   symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
   let env = Program symbol_table sorted_array (map_lines sorted_array)
   
@@ -232,10 +240,10 @@ test_parser file = do
 get_test_material file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
-  let sorted_array = create_program_array content
+  let (list,sorted_array) = create_program_array content
   let lineMap = map_lines sorted_array
   symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  return (Program symbol_table sorted_array lineMap)
+  return (list,(Program symbol_table sorted_array lineMap))
 
 
 
