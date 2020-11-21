@@ -16,7 +16,7 @@ data Statement      = FOR Expression Expression Expression
                     | PRINT Expression
                     | END
 
-data Expression     = AddExpr Expression Expression
+data Expression     = AddExpr Expression Expression 
                     | MultExpr Expression Expression
                     | ConstExpr {num::Float}
                     | Var {id:: Char}
@@ -53,6 +53,9 @@ data Environment = Program {s_table        :: IOArray Char Expression,
 -------------------------------------------------------------
 -- Derived instances for Data types                        --
 -------------------------------------------------------------
+
+instance Num Expression where
+  (ConstExpr n1) + (ConstExpr n2) = (ConstExpr (n1 + n2))
 
 
 instance Show Environment where
