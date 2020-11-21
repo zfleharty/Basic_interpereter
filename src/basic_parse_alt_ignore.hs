@@ -78,15 +78,15 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
 
------------------------------------------------------------------------------
---------------------- Evaluate Expression types -----------------------------
------------------------------------------------------------------------------
+------------------------------------------------------------------------
+--------------------- Evaluate Expression types ------------------------
+------------------------------------------------------------------------
 
-eval_expr       :: Expression -> (IOArray Char Constant) -> IO Int
+eval_expr       :: Expression -> (IOArray Char Constant) -> IO (Float)
 eval_expr e arr = (runReaderT $ eval_expr' e) arr
   
 
-eval_expr'      :: Expression -> ReaderT (IOArray Char Constant) IO Int
+eval_expr'      :: Expression -> ReaderT (IOArray Char Constant) IO (Float)
 eval_expr' e    = do
   tab <- ask
   let r = (\e' -> (runReaderT $ eval_expr' e') tab)
@@ -102,16 +102,16 @@ eval_expr' e    = do
          ConstExpr c ->  return $ num c
          FxnExpr (INT e') -> do
            frac <- liftIO $ r e'
-           return ((fromIntegral . floor) frac)
+           return ((fromIntegral .floor) frac)
          VarExpr (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
   
-test_add_expr_01 = AddExpr (ConstExpr (NumConst 5)) (ConstExpr (NumConst 6))
 
------------------------------------------------------------------------------
---------------------- Evaluate Statement types -----------------------------
------------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+--------------------- Evaluate Statement types -------------------------
+------------------------------------------------------------------------
 
 eval_sttmnt       :: Statement -> (IOArray Char Constant) -> IO ()
 eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             
@@ -149,26 +149,29 @@ testing file = do
   -- rather than just NumConst's?
   symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
   putStrLn ""
-  putStrLn $ "Entire sorted_array is: "
+  putStrLn $ "(1) Entire sorted_array is: "
   putStrLn $ (show (assocs sorted_array))
   putStrLn ""
   let inp_test = sorted_array ! 2
-  putStrLn $ "Example item from sorted_array: "
+  putStrLn $ "(2) Example item from sorted_array: "
   putStrLn $ show inp_test
   putStrLn ""
-  -- notice symbol_table has already been partially unwrapped?
-  x <- readArray symbol_table 'B'
-  putStrLn $ "readArray symbol_table 'B' = " ++ (show x)
+  -- notice that symbol_table has already been partially unwrapped?
+  x <- readArray symbol_table 'H'
+  putStrLn $ "(3) readArray symbol_table 'H' = " ++ (show x)
   putStrLn ""
   y <- (getElems symbol_table)
-  putStrLn $ "symbol_table_elems = "
+  putStrLn $ "(4) symbol_table elems: "
   putStrLn $ show y
   putStrLn ""
-  writeArray symbol_table 'B' (NumConst 1)
+  -- change elem in symbol_table?
+  writeArray symbol_table 'H' (NumConst 1)
   y <- (getElems symbol_table)
-  putStrLn $ "After change, symbol_table_elems = "
+  putStrLn $ "(5) After changing symbol_table entry H, symbol_table elems: "
   putStrLn $ show y
   putStrLn ""
+--  ((eval_line inp_test) symbol_table)
+--  readArray symbol_table ('H')
 
 
 
@@ -188,32 +191,23 @@ test_interp file = do
   putStrLn "hello"
                 
 
+
+
 main = do
   --args <- getArgs 
   --fileExists <- doesFileExist $ head args
   if True -------------------- fileExists __________________Changed for testing inside interactive GHCI without command line args
     then do handle <- openFile ("foo.bas") ReadMode
             content <- hGetContents handle
-            let sorted_array = array bound [(ix ls, ls) | ls <-sorted_lines]
-                  where sorted_lines = parse_lines $ tupled_lines (lines content)
-                        bound = (1, length sorted_lines)
-            let symbol_table = [(i,(NumConst 0)) | i <- ['A' ..'Z']]
+            let sorted_array = create_program_array content
+            
             let line_table_array = fmap (\ls -> (origLine ls, ix ls)) sorted_array
             let line_table = let (min,max) = bounds line_table_array
                              in [line_table_array ! i | i <- [min..max] ]
+
             let line_map = fromList line_table
             putStrLn $ show line_map
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
-
--- ================================== --
--- experimenting by Hoss              --
--- main2 = do
---     ls <- fmap Text.lines (Text.readFile "foo.bas")
---     do 
---       let ls' = map Text.unpack ls
---       putStrLn $ show ls'
--- =================================== --
-
 
 
   
@@ -352,7 +346,7 @@ notAlphanum         = sat (not.isAlphaNum)
   
 p_const   = p_number +++ p_symbol
 
-p_number = do {d <- token int; return (NumConst d)}
+p_number = do {d <- token int; return (NumConst (realToFrac d))}
 
 p_var    = do {var <- token upper; return (Var var)}
 -- instead, make sure an upper case letter is followed by non-alpha char
@@ -381,7 +375,7 @@ var_expr = do {var <- token upper; return (VarExpr (Var var))}
 -- to ensure we're only dealing with single-letter vars
 -- var_expr = do {var <- upper; notAlphanum; return (VarExpr (Var var))}
 
-num_expr = do {d <- token int; return (ConstExpr (NumConst d))}
+num_expr = do {d <- token int; return (ConstExpr (NumConst $ realToFrac d))}
 
 -- fxn_expr = do {}
 
@@ -465,7 +459,7 @@ value    = do{
 
 test_io_array = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
 
-test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4))))  
+test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4.3))))  
 test_expr2 = (MultExpr (VarExpr (Var 'A')) (AddExpr (VarExpr (Var 'B')) (VarExpr (Var 'C'))))
 test_expr3 = (AddExpr (VarExpr (Var 'A')) (AddExpr (VarExpr (Var 'B')) (VarExpr (Var 'C'))))
 
