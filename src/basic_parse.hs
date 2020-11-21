@@ -36,23 +36,23 @@ import Data.Array.IO
 import System.IO
 import Data.Map hiding ((!),assocs)
 import Parselib
-import Data.Char
-import System.Environment
+import System.Random
 import Data.Ix()
 import Data.Array
-import System.Directory
 import Data.List
 import Data.Array()
-import Data.IORef
-import Control.Monad
+import Control.Monad.Trans
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Reader
-import Control.Monad.IO.Class
 import System.Exit
-import Data.Maybe
--- ================================== --
+import Parser
 import BasicTypes
+import Data.Tuple
 -- ================================== --
+-- experimenting by Hoss              --
+import qualified Data.Text    as Text
+import qualified Data.Text.IO as Text
+-- =================================== --
 
 tuple_line :: Parser Int
 tuple_line = do {num <- int; return num}
@@ -66,6 +66,17 @@ tupled_lines ls = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
                             where tuple = head (parse tuple_line x)
                                     in l_statement | x <- ls]
 
+parse_lines' lines = [let p_line = (lmap,((fst . head) stment))
+                            where stment   = parse statement (unparsed ls)
+                                  lmap = (line_num ls,n)
+                      in p_line | (n,ls) <- zip [1..] (sort (tupled_lines lines))]
+
+create_environment content table  = Program table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
+  where (lm,sa) = unzip $ parse_lines' (lines content)
+        program = array (1,length sa) [x | x <- zip [1..] sa]
+        list_prog = assocs program
+        f_n = [(i,find_next v list_prog) | (i,(FOR v _ _)) <- list_prog]
+
 -- parse_lines      Processes a list of Line_Statements, typically
 --                  produced by the tupled_lines fxn and which appear
 --                  as tuples of the form (line #, Line_statement),
@@ -78,416 +89,209 @@ parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stm
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
 
-------------------------------------------------------------------------
---------------------- Evaluate Expression types ------------------------
-------------------------------------------------------------------------
+create_program_array content = (sorted_lines,array bound [(ix ls, ls) | ls <- sorted_lines])
+                               where sorted_lines = parse_lines $ tupled_lines (lines content)
+                                     bound = (1, length sorted_lines)
 
-eval_expr       :: Expression -> (IOArray Char Constant) -> IO (Float)
-eval_expr e arr = (runReaderT $ eval_expr' e) arr
-  
+-----------------------------------------------------------------------------
+--------------------- Evaluate Expression types -----------------------------
+-----------------------------------------------------------------------------
 
-eval_expr'      :: Expression -> ReaderT (IOArray Char Constant) IO (Float)
-eval_expr' e    = do
+eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
+
+eval_comp_expr' e = do
   tab <- ask
-  let r = (\e' -> (runReaderT $ eval_expr' e') tab)
+  prog <- lift get
+  case e of
+    (CompEqualsExpr e1 e2) -> do
+      v1 <- liftIO $ (eval_expr tab e1)
+      v2 <- liftIO $ (eval_expr tab e2)
+      return $ v1 == v2
+
+
+eval_expr arr e = (runReaderT $ eval_expr' e) arr
+
+eval_expr'   :: Expression -> ReaderT (Environment) IO (Float)
+eval_expr' e = do
+  env <- ask
+  let tab = s_table env
+  let r = (\e' -> (runReaderT $ eval_expr' e') env)
     in case e of
+
          AddExpr e1 e2 -> do
            i1 <- liftIO $ r e1
            i2 <- liftIO $ r e2
            return $ i1 + i2
+
          MultExpr e1 e2 -> do
            i1 <- liftIO $ r e1
            i2 <- liftIO $ r e2
            return $ i1 * i2
-         ConstExpr c ->  return $ num c
-         FxnExpr (INT e') -> do
+
+         ConstExpr c ->  return $ c
+
+         FxnExpr "INT" e' -> do
            frac <- liftIO $ r e'
            return ((fromIntegral .floor) frac)
-         VarExpr (Var v) -> do
+
+         FxnExpr "RND" e' -> do
+           frac <- liftIO $ r e'
+           if frac > 1
+             then do
+             rand <- (randomRIO (0,frac))
+             return $ (fromIntegral.floor) rand
+             else do
+             rand <- randomRIO (0::Float,1::Float)
+             return rand
+
+         (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
-  
 
 
-------------------------------------------------------------------------
---------------------- Evaluate Statement types -------------------------
-------------------------------------------------------------------------
+eval_sttmnt       :: Statement -> Environment -> IO ()
+eval_sttmnt s arr = (runReaderT $ eval_statement s) arr
 
-eval_sttmnt       :: Statement -> (IOArray Char Constant) -> IO ()
-eval_sttmnt s arr = (runReaderT $ eval_statement s) arr             
-
-eval_statement    :: Statement -> ReaderT (IOArray Char Constant) IO ()
-eval_statement s  = case s of                                        
-                      (LET (Var i) e) -> do              
-                        table <- ask
-                        c <- liftIO (eval_expr e table)
-                        liftIO $ writeArray table i (NumConst c)                
-                      (PRINT e) -> do                                
-                        table <- ask
-                        e' <- liftIO (eval_expr e table)
+eval_statement    :: Statement -> ReaderT Environment IO ()
+eval_statement s= case s of
+                      (LET (Var i) e) -> do
+                        env <- ask
+                        c <- liftIO (eval_expr env e)
+                        liftIO $ writeArray (s_table env) i (ConstExpr c)
+                      (PRINT e) -> do
+                        env <- ask
+                        e' <- liftIO (eval_expr env e)
                         liftIO $ putStrLn . show $ e'
-                      END -> liftIO $ exitWith ExitSuccess                
+                      END -> liftIO $ exitWith ExitSuccess
                       INPUT (Var c) -> do
-                        table <- ask
+                        env <- ask
                         inp <- liftIO $ readLn
-                        liftIO $ writeArray table c (NumConst inp)
-              
-                     
-eval_line (Parsed_line i ol s) = do
-  eval_sttmnt s 
+                        liftIO $ writeArray (s_table env) c (ConstExpr inp)
 
-create_program_array content = array bound [(ix ls, ls) | ls <- sorted_lines]
-                               where sorted_lines = parse_lines $ tupled_lines (lines content)
-                                     bound = (1, length sorted_lines)
+interpreter   :: Int -> ReaderT Environment IO ()
+interpreter n = do
+  env@(Program {
+          s_table=tab,
+          basic_program=program,
+          line_map=lines
+          }) <- ask
 
+  let s = program ! n
 
-testing file = do
-  handle <- openFile file ReadMode
-  content <- hGetContents handle
-  let sorted_array = create_program_array content
-  -- might the symbol table need to hold epxressions more generally
-  -- rather than just NumConst's?
-  symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
-  putStrLn ""
-  putStrLn $ "(1) Entire sorted_array is: "
-  putStrLn $ (show (assocs sorted_array))
-  putStrLn ""
-  let inp_test = sorted_array ! 2
-  putStrLn $ "(2) Example item from sorted_array: "
-  putStrLn $ show inp_test
-  putStrLn ""
-  -- notice that symbol_table has already been partially unwrapped?
-  x <- readArray symbol_table 'H'
-  putStrLn $ "(3) readArray symbol_table 'H' = " ++ (show x)
-  putStrLn ""
-  y <- (getElems symbol_table)
-  putStrLn $ "(4) symbol_table elems: "
-  putStrLn $ show y
-  putStrLn ""
-  -- change elem in symbol_table?
-  writeArray symbol_table 'H' (NumConst 1)
-  y <- (getElems symbol_table)
-  putStrLn $ "(5) After changing symbol_table entry H, symbol_table elems: "
-  putStrLn $ show y
-  putStrLn ""
---  ((eval_line inp_test) symbol_table)
---  readArray symbol_table ('H')
+  case s of
+    (LET (Var i) e) -> do
+      c <- liftIO (eval_expr env e)
+      liftIO $ writeArray (s_table env) i (ConstExpr c)
+      interpreter (n+1)
+
+    (PRINT e) -> do
+      e' <- liftIO (eval_expr env e)
+      liftIO $ putStrLn . show $ e'
+      interpreter (n+1)
+
+    END -> liftIO $ exitWith ExitSuccess
+
+    INPUT (Var c) -> do
+      inp <- liftIO $ readLn
+      liftIO $ writeArray (s_table env) c (ConstExpr inp)
+      interpreter (n+1)
 
 
 
-
-test_interp :: String -> IO ()
-test_interp file = do
-  --file-handling
-  handle <- openFile file ReadMode
-  content <- hGetContents handle
-
-  --init
-  let sorted_array = create_program_array content
-  symbol_table <- newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
-
-  --evaluation
-  sequence $ (`eval_line` symbol_table) <$> sorted_array
-  putStrLn "hello"
-                
-
+eval_line (Parsed_line i ol s)= do
+  eval_sttmnt s
 
 
 main = do
-  --args <- getArgs 
+  --args <- getArgs
   --fileExists <- doesFileExist $ head args
   if True -------------------- fileExists __________________Changed for testing inside interactive GHCI without command line args
-    then do handle <- openFile ("foo.bas") ReadMode
+    then do handle <- openFile ("test.bas") ReadMode
             content <- hGetContents handle
-            let sorted_array = create_program_array content
-            
-            let line_table_array = fmap (\ls -> (origLine ls, ix ls)) sorted_array
-            let line_table = let (min,max) = bounds line_table_array
-                             in [line_table_array ! i | i <- [min..max] ]
 
-            let line_map = fromList line_table
-            putStrLn $ show line_map
+            table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+            let (Program tab sorted_ar linemap f_n n_f) = create_environment content table
+
+            putStrLn $ show f_n
+            putStrLn $ show n_f
+            putStrLn $ show linemap
+            putStrLn $ show sorted_ar
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
 
-  
--- =========================================== --
---  Parsers for special individual characters  --
--- =========================================== --
 
-equal = char ('=')
-left  = char ('(')
-right = char (')')
-
--- =========================================== --
---  Parsers for special key strings            --
--- =========================================== --
-
-p_end :: Parser String
-p_end = string "END"
-
-p_for :: Parser String
-p_for = string "FOR"
-
-p_if :: Parser String
-p_if = string "IF"
-
-p_input :: Parser String
-p_input = string "INPUT"
-
-p_let :: Parser String
-p_let = string "LET"
-
-p_next :: Parser String
-p_next = string "NEXT"
-
-p_print :: Parser String
-p_print = string "PRINT"
-
-p_then :: Parser String
-p_then = string "THEN"
-
-p_to :: Parser String
-p_to = string "TO"
-
-p_int :: Parser String
-p_int = string "INT"
-
-p_rnd :: Parser String
-p_rnd = string "RND"
-
--- at least one space
-space1 :: Parser String
-space1 = many1 (sat isSpace)
-
--- =========================================== --
---  Parsers for particular Statements          --
--- =========================================== --
-
-statement       :: Parser Statement
-end_statement   :: Parser Statement
-for_statement   :: Parser Statement
-if_statement    :: Parser Statement
-input_statement :: Parser Statement
-let_statement   :: Parser Statement
--- next_statement  :: Parser Statement
-print_statement :: Parser Statement
-
-statement =
-  for_statement +++ input_statement +++ if_statement +++
-  let_statement +++ next_statement +++ print_statement +++
-  end_statement
-  
-
-end_statement = do {_ <- token p_end; return END}
-
-if_statement = do
-  token p_if
-  boolExpr <- token equals_expr
-  token p_then
-  c <- token p_const
-  return (IF boolExpr c)
-
-input_statement = do
-  token p_input
-  var <- token p_var
-  return (INPUT var)
-
-for_statement = do
-  token p_for
-  var <- token p_var
-  token equal
-  fromExpr <- token expr
-  token p_to
-  toExpr <- token expr
-  return (FOR var fromExpr toExpr)
-
--- let_statement = do
---   _ <- token p_let
---   var <- token p_var
---   _ <- token equal
---   val <- token p_const
---   return (LET var (ConstExpr val))
-
--- working to upgrade:
-let_statement = do
-  _ <- token p_let
-  var <- token p_var
-  _ <- token equal
-  assigned <- token expr
-  return (LET var assigned)
-
-next_statement = do
-  token p_next
-  var <- token p_var
-  return (NEXT var)
-
-print_statement = do {token p_print; e <- expr; return (PRINT e)}
-
--- =========================================== --
---  Parsers (and supporting fxns) for          --
---  Statement components                       --
--- =========================================== --
-
-p_const  :: Parser Constant
-p_number :: Parser Constant
-p_var    :: Parser Var
-p_symbol :: Parser Constant
-
-var_char :: Char -> Bool
-var_char_end :: Char -> Bool
-
-var_char x     = isAlphaNum x || elem x "_"
-
-var_char_end x = elem x "$%"
-
-notAlphanum        :: Parser Char
-notAlphanum         = sat (not.isAlphaNum)
-  
-p_const   = p_number +++ p_symbol
-
-p_number = do {d <- token int; return (NumConst (realToFrac d))}
-
-p_var    = do {var <- token upper; return (Var var)}
--- instead, make sure an upper case letter is followed by non-alpha char
--- to ensure we're only dealing with single-letter vars
--- p_var    = do {var <- upper; space1; return (Var var)}
-
-p_symbol = do {a <- sat (isAlpha); b <- many (sat var_char);
-               c <- many (sat var_char_end); return (StringConst (a:(b++c)))}
-
-
-var_expr     :: Parser Expression
-num_expr     :: Parser Expression
-expr         :: Parser Expression
-add_expr     :: Parser Expression
-mult_expr    :: Parser Expression
-int_fxn_expr :: Parser Expression
-equals_expr  :: Parser CompareExpr
-
-value        :: Parser Expression
-
-
-var_expr = do {var <- token upper; return (VarExpr (Var var))}
--- instead, can we make sure an upper case letter is followed by a
--- non-alphanumeric character, so we don't end up consuming the
--- the first letters of functions like INT or RND?
--- to ensure we're only dealing with single-letter vars
--- var_expr = do {var <- upper; notAlphanum; return (VarExpr (Var var))}
-
-num_expr = do {d <- token int; return (ConstExpr (NumConst $ realToFrac d))}
-
--- fxn_expr = do {}
-
--- here try looking for int_fxn_expr FIRST so that the 1st letter(s)
--- not mistaken for variables?
-expr     =   add_expr
-         +++ mult_expr
-         +++ add_expr_paren
-         +++ rnd_fxn_expr
-         +++ int_fxn_expr
-
-add_expr  = do {
-  x <- token mult_expr;
-  token (char '+');
-  y <- token add_expr;
-  return (AddExpr x y)} +++ mult_expr
-
-add_expr_paren = do {
-  token (char '(');
-  x <- token mult_expr;
-  token (char '+');
-  y <- token add_expr;
-  token (char ')');
-  return (AddExpr x y)} +++ mult_expr
-
-mult_expr = do {
-  x <- token value;
-  token (char '*');
-  y <- token mult_expr;
-  return (MultExpr x y)} +++ value
-
--- For the INT() situations
--- This and the rnd version might benefit from stricter linking
--- of the fxn name to following parenthesis
-int_fxn_expr = do {
-  token p_int;
-  token (char '(');
-  e <- token expr;
-  token (char ')');
-  return (FxnExpr (INT e))
-}
-
--- For the RND() situations
--- This and the INT version might benefit from stricter linking
--- of the fxn name to following parenthesis
-rnd_fxn_expr = do {
-  token p_rnd;
-  token (char '(');
-  e <- token expr;
-  token (char ')');
-  return (FxnExpr (RND e))
-}
-
--- set up for Expression = Expression
--- may be too general for our needs and rely on inadeq expr parser
-equals_expr = do
-  x <- token expr
-  token equal
-  y <- token expr
-  return (CompEqualsExpr x y)
-
--- The arbitrary number of parens being consumed on either side
--- is problematic here for some situations, such as INT(2 * (3+4)).
--- See alternative further below.
--- value    = do{
---   many1 (char '(');
---   e <- expr;
---   many1 (char ')');
---   return e} +++  (num_expr) +++ (var_expr)
-
-value    = do{
-  char '(';
-  e <- expr;
-  char ')';
-  return e } +++  rnd_fxn_expr +++ int_fxn_expr +++ (num_expr) +++ (var_expr)-- b/c a fxn is also a possible value?
+find_next _ [] = 0
+find_next var ((i,s):rest) = case s of
+                               NEXT var -> i
+                               _ -> find_next var rest
 
 
 -- ============================== --
 --  some definitions for testing  --
 -- ============================== --
 
-test_io_array = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
+----------------------------------------------------------------------------------------
+-- test_interp file = do                                                              --
+--   handle <- openFile file ReadMode                                                 --
+--   content <- hGetContents handle                                                   --
+--   let (_,sorted_array) = create_program_array content                              --
+--   symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression) --
+--   let env = Program symbol_table sorted_array (map_lines sorted_array)             --
+--                                                                                    --
+--                                                                                    --
+--   sequence $ (`eval_line` (env)) <$> sorted_array                                  --
+----------------------------------------------------------------------------------------
 
-test_expr1 = (MultExpr (ConstExpr (NumConst 2)) (AddExpr (ConstExpr (NumConst 3)) (ConstExpr (NumConst 4.3))))  
-test_expr2 = (MultExpr (VarExpr (Var 'A')) (AddExpr (VarExpr (Var 'B')) (VarExpr (Var 'C'))))
-test_expr3 = (AddExpr (VarExpr (Var 'A')) (AddExpr (VarExpr (Var 'B')) (VarExpr (Var 'C'))))
 
-test_number_1 = ConstExpr (NumConst 1)
-test_number_5 = ConstExpr (NumConst 5)
-test_number_10 = ConstExpr (NumConst 10)
-test_conststring = StringConst "ABC"
+test_parser file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  let sorted_array = create_program_array content
+  putStrLn $ show sorted_array
+
+
+get_test_material file = do                                                        --
+  handle <- openFile file ReadMode                                                 --
+  content <- hGetContents handle                                                   --
+  table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = Program table program (fromList lm)
+        where (lm,sa) = unzip $ parse_lines' (lines content)
+              program = array (1,length sa) [x | x <- zip [1..] sa]
+  return (env)                        --
+
+
+
+
+
+test_io_array = newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+
+test_expr1 = (MultExpr (ConstExpr 2) (AddExpr (ConstExpr ( 3)) (ConstExpr ( 4.3))))
+test_expr2 = (MultExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
+test_expr3 = (AddExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
+
+test_number_1 = ConstExpr ( 1)
+test_number_5 = ConstExpr ( 5)
+test_number_10 = ConstExpr ( 10)
 test_var_x = Var 'X'
 test_var_y = Var 'Y'
 test_valuevar = VarVal test_var_x
 -- test_valuefxn = FxnVal (RND (VarExpr test_var_x))
--- test_valueconst = ConstVal (NumConst 10)
---test_expr_equals = CompEqualsExpr (VarExpr test_var_x) (ConstExpr (NumConst 10))
-test_int_fxn_01 = INT (VarExpr test_var_x)
-test_int_fxn_02 = INT (AddExpr (VarExpr test_var_x) (VarExpr test_var_y))
+-- test_valueconst = ConstVal ( 10)
+--test_expr_equals = CompEqualsExpr (VarExpr test_var_x) (ConstExpr ( 10))
+test_int_fxn_01 = INT (test_var_x)
+test_int_fxn_02 = INT (AddExpr (test_var_x) (test_var_y))
 test_int_fxn_03 = INT test_expr1
-test_rnd_fxn_01 = RND (VarExpr test_var_y)
-test_rnd_fxn_02 = RND (AddExpr (VarExpr test_var_x) (VarExpr test_var_y))
+test_rnd_fxn_01 = RND (test_var_y)
+test_rnd_fxn_02 = RND (AddExpr (test_var_x) (test_var_y))
 test_rnd_fxn_03 = RND (test_expr1)
 
-test_int_rnd_fxn_01 = INT (FxnExpr (RND test_number_5))
-test_int_rnd_fxn_02 = INT (MultExpr (FxnExpr (RND test_number_5)) (AddExpr (VarExpr (Var 'H')) test_number_1))
-test_int_rnd_fxn_03 = INT (AddExpr (MultExpr (FxnExpr (RND test_number_5)) (VarExpr (Var 'H'))) (test_number_1))
-
+test_int_rnd_fxn_01 = FxnExpr "INT" (FxnExpr "RND" test_number_5)
+test_int_rnd_fxn_02 = FxnExpr "INT" (MultExpr (FxnExpr "RND" test_number_5) (AddExpr ((Var 'H')) test_number_1))
+test_int_rnd_fxn_03 = FxnExpr "INT" (AddExpr (MultExpr (FxnExpr "RND" test_number_5) (Var 'H')) (test_number_1))
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
   FORSTEP test_var_x test_number_5 test_number_10 test_number_1
---test_statement_if = IF test_expr_equals (NumConst 100)
+--test_statement_if = IF test_expr_equals ( 100)
 test_statement_input = INPUT test_var_y
 test_statement_let = LET test_var_x test_number_5
 test_statement_next = NEXT test_var_x
@@ -503,170 +307,3 @@ test_program_list_02 = ["30 LET C = 4",
                      "10 LET A = 2",
                      "40 PRINT A * (B + C)",
                      "50 END"]
-
-test_02 = do
-  let lines = tupled_lines test_program_list_02
-  putStrLn $ "lines = " ++ (show lines)
-  let sorted_lines = sort lines
-  putStrLn $ "sorted_lines = " ++ (show sorted_lines)
-  let zipped_sorted_lines = zip [1..] sorted_lines
-  putStrLn $ "zipped_sorted_lines = " ++ (show zipped_sorted_lines)
-  let head_of_zipped = head zipped_sorted_lines
-  putStrLn $ "head_of_zipped = " ++ (show head_of_zipped)
-  let (n, ls) = head_of_zipped
-  let stment = parse statement (unparsed ls)
-  putStrLn $ "stment = " ++ (show stment)
-  let str_of_stment = (fst . head) stment
-  putStrLn $ "str_of_stment = " ++ (show str_of_stment)
-  let parsed_line_construction = Parsed_line {ix=1, origLine=10, sttment = str_of_stment}
-  putStrLn $ "parsed_line_construction = " ++ (show parsed_line_construction)
-
-test_03 = do
-  let symbol_array = array ('A', 'Z') [(c, 0) | c <- ['A'..'Z']]
-  putStrLn $ show symbol_array
-  -- modify the entry for 'B' from 0 to 3:
-  arr <- (return $ symbol_array // [('B', 3)])
-  -- let symbol_array = symbol_array // [('B', 3)]
-  putStrLn $ show arr
-  -- putStrLn $ show symbol_array
-
-test_04 = do
-  -- arr <- newArray (1,10) 37 :: IO (IOArray Int Int)
-  arr <- newArray ('A','Z') 0 :: IO (IOArray Char Int)
-  -- a <- readArray arr 1
-  a <- readArray arr 'B'
-  -- writeArray arr 1 64
-  writeArray arr 'B' 1 
-  -- b <- readArray arr 1
-  b <- readArray arr 'B'
-  
-  print (a,b)
-  -- putStrLn $ show arr
-
-test_05 =  do
-  putStrLn ""
-  putStrLn $ "test_int_fxn_01: " ++ (show test_int_fxn_01)
-  let parsedExpr = parse expr (show test_int_fxn_01)
-  putStrLn $ "parse expr test_int_fxn_01: " ++ (show parsedExpr)
-  putStrLn ""
-  putStrLn $ "test_int_fxn_02: " ++ (show test_int_fxn_02)
-  let parsedExpr = parse expr (show test_int_fxn_02)
-  putStrLn $ "parse expr test_int_fxn_02: " ++ (show parsedExpr)
-  putStrLn ""
-  putStrLn $ "test_int_fxn_03: " ++ (show test_int_fxn_03)
-  let parsedExpr = parse expr (show test_int_fxn_03)
-  putStrLn $ "parse expr test_int_fxn_03: " ++ (show parsedExpr)
-  putStrLn ""
-  putStrLn $ "test_rnd_fxn_01: " ++ (show test_rnd_fxn_01)
-  let parsedExpr = parse expr (show test_rnd_fxn_01)
-  putStrLn $ "parse expr test_rnd_fxn_01: " ++ (show parsedExpr)
-  putStrLn ""
-  putStrLn $ "test_rnd_fxn_02: " ++ (show test_rnd_fxn_02)
-  let parsedExpr = parse expr (show test_rnd_fxn_02)
-  putStrLn $ "parse expr test_rnd_fxn_02: " ++ (show parsedExpr)
-  putStrLn ""
-  putStrLn $ "test_rnd_fxn_03: " ++ (show test_rnd_fxn_03)
-  let parsedExpr = parse expr (show test_rnd_fxn_03)
-  putStrLn $ "parse expr test_rnd_fxn_03: " ++ (show parsedExpr)
-  putStrLn ""
-  putStrLn $ "test_int_rnd_fxn_01: " ++ (show test_int_rnd_fxn_01)
-  let parsedExpr = parse expr (show test_int_rnd_fxn_01)
-  putStrLn $ "parse expr test_int_rnd_fxn_01: " ++ (show parsedExpr)
-  putStrLn ""
-  putStrLn $ "test_int_rnd_fxn_02: " ++ (show test_int_rnd_fxn_02)
-  let parsedExpr = parse expr (show test_int_rnd_fxn_02)
-  putStrLn $ "parse expr test_int_rnd_fxn_02: " ++ (show parsedExpr)
-  putStrLn ""
-  putStrLn $ "test_int_rnd_fxn_03: " ++ (show test_int_rnd_fxn_03)
-  let parsedExpr = parse expr (show test_int_rnd_fxn_03)
-  putStrLn $ "parse expr test_int_rnd_fxn_03: " ++ (show parsedExpr)
-  putStrLn ""
-
--- tests of statement parsing
-test_06 = do
-  putStrLn ""
-  putStrLn " TESTS OF STATEMENT PARSING "
-  putStrLn "============================"
-  putStrLn ""
-  let parsedExpr = parse statement "INPUT H"
-  putStrLn $ "parse statement \"INPUT H\": " ++ (show parsedExpr)
-  putStrLn ""
-  let parsedExpr = parse statement "LET X = INT(RND(5)*H+1)"
-  putStrLn $ "parse statement \"LET X = INT(RND(5)*H+1)\": " ++ 
-             (show parsedExpr)
-  putStrLn ""
-  let parsedExpr = parse statement "PRINT X"
-  putStrLn $ "parse statement \"PRINT X\": " ++ (show parsedExpr)
-  putStrLn ""
-  let parsedExpr = parse statement "FOR I = 1 TO H"
-  putStrLn $ "parse statement \"FOR I = 1 TO H\": " ++ (show parsedExpr)
-  putStrLn ""
-  let parsedExpr = parse statement "PRINT I"
-  putStrLn $ "parse statement \"PRINT I\": " ++ (show parsedExpr)
-  putStrLn ""
-  let parsedExpr = parse statement "IF I = X THEN 60"
-  putStrLn $ "parse statement \"IF I = X THEN 60\": " ++ (show parsedExpr)
-  putStrLn ""
-  let parsedExpr = parse statement "NEXT I"
-  putStrLn $ "parse statement \"NEXT I\": " ++ (show parsedExpr)
-  putStrLn ""
-  let parsedExpr = parse statement "END"
-  putStrLn $ "parse statement \"END\": " ++ (show parsedExpr)
-
-
---  TESTING SOME LISTS, ARRAYS, ETC
-list_01 = ["Crosby", "Stills", "Nash", "Young"]
-listToArray :: [a] -> Array Int a
-listToArray ls = listArray (0, length ls - 1) ls
-listToIOArray :: [a] -> IO (IOArray Int a)
-listToIOArray ls = newListArray (0, length ls - 1) ls
-arr = listToArray list_01
-ioarr = listToIOArray list_01
-ioarr2 = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
--- Inside ghci
--- use x <- ioarr; readArray x 3 to get the 3rd item …
--- use y <- ioarr2; readArray y 'B' to get item assoc'd with key 'B'
--- in ghci can do this: x <- ioarr
--- then readArray x 3 to get 3rd item,
--- or getElems x to print the list of items, producing m [[Char]]
--- instead can do ioarr >>= getElems, which produces IO [[Char]]
-
--- ====================================== --
---  A Reminder of (some) of the Grammar   --
--- ====================================== --
-
-{-
-ID             = {letter}
-String         = '"'{String Chars}*'"'
-Integer        = {digit}+
-
-<Statement>   ::= END
-                | LET <Variable> '=' <Expression>
-                | PRINT <Print list>
-                | PRINT TAB '(' <Expression> ')' <Print list>
-
-<Variable>    ::= ID
-                | <Array>
-
--}
-
-
--- ========================================================= --
---  Some Notes on Variables and Dat Types In Chipmunk Basic  --
--- (see http://www.nicholson.com/rhn/basic/basic.man.html    --
--- ========================================================= --
-
-{- VARIABLES and DATA TYPES
-
-  Variable names can be up to 31 significant characters in
-  length, starting with a letter, and optionally followed by
-  letters, digits, underscores, or an ending dollar sign or
-  percent character.  Variable names are case insensitive.
-  Variables can hold floating point values (IEEE double),
-  short integers, or strings of up to 254 characters.  If a
-  variable name ends with a "$" character, it holds a string
-  value, otherwise it holds numeric values.  If a variable
-  name ends with the "%" character it may be limited to
-  holding only integer values from -32768 to 32767.
--}
-
