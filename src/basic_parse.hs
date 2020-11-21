@@ -93,6 +93,10 @@ create_program_array content = (sorted_lines,array bound [(ix ls, ls) | ls <- so
                                where sorted_lines = parse_lines $ tupled_lines (lines content)
                                      bound = (1, length sorted_lines)
 
+find_next _ [] = 0
+find_next var ((i,s):rest) = case s of
+                               NEXT var -> i
+                               _ -> find_next var rest
 -----------------------------------------------------------------------------
 --------------------- Evaluate Expression types -----------------------------
 -----------------------------------------------------------------------------
@@ -101,7 +105,6 @@ eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
 
 eval_comp_expr' e = do
   tab <- ask
-  prog <- lift get
   case e of
     (CompEqualsExpr e1 e2) -> do
       v1 <- liftIO $ (eval_expr tab e1)
@@ -132,50 +135,25 @@ eval_expr' e = do
 
          FxnExpr "INT" e' -> do
            frac <- liftIO $ r e'
-           return ((fromIntegral .floor) frac)
+           return ((fromIntegral . floor) frac)
 
          FxnExpr "RND" e' -> do
            frac <- liftIO $ r e'
            if frac > 1
              then do
-             rand <- (randomRIO (0,frac))
+             rand <- liftIO $ (randomRIO (0,frac))
              return $ (fromIntegral.floor) rand
              else do
-             rand <- randomRIO (0::Float,1::Float)
+             rand <- liftIO $ randomRIO (0::Float,1::Float)
              return rand
 
          (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
 
-
-eval_sttmnt       :: Statement -> Environment -> IO ()
-eval_sttmnt s arr = (runReaderT $ eval_statement s) arr
-
-eval_statement    :: Statement -> ReaderT Environment IO ()
-eval_statement s= case s of
-                      (LET (Var i) e) -> do
-                        env <- ask
-                        c <- liftIO (eval_expr env e)
-                        liftIO $ writeArray (s_table env) i (ConstExpr c)
-                      (PRINT e) -> do
-                        env <- ask
-                        e' <- liftIO (eval_expr env e)
-                        liftIO $ putStrLn . show $ e'
-                      END -> liftIO $ exitWith ExitSuccess
-                      INPUT (Var c) -> do
-                        env <- ask
-                        inp <- liftIO $ readLn
-                        liftIO $ writeArray (s_table env) c (ConstExpr inp)
-
 interpreter   :: Int -> ReaderT Environment IO ()
 interpreter n = do
-  env@(Program {
-          s_table=tab,
-          basic_program=program,
-          line_map=lines
-          }) <- ask
-
+  env@(Program tab program lines for_next next_for) <- ask
   let s = program ! n
 
   case s of
@@ -196,10 +174,9 @@ interpreter n = do
       liftIO $ writeArray (s_table env) c (ConstExpr inp)
       interpreter (n+1)
 
-
-
-eval_line (Parsed_line i ol s)= do
-  eval_sttmnt s
+    _ -> do
+      liftIO $ putStrLn "could not match"
+      interpreter (n+1)
 
 
 main = do
@@ -219,28 +196,19 @@ main = do
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
 
-
-find_next _ [] = 0
-find_next var ((i,s):rest) = case s of
-                               NEXT var -> i
-                               _ -> find_next var rest
-
-
 -- ============================== --
 --  some definitions for testing  --
 -- ============================== --
 
-----------------------------------------------------------------------------------------
--- test_interp file = do                                                              --
---   handle <- openFile file ReadMode                                                 --
---   content <- hGetContents handle                                                   --
---   let (_,sorted_array) = create_program_array content                              --
---   symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression) --
---   let env = Program symbol_table sorted_array (map_lines sorted_array)             --
---                                                                                    --
---                                                                                    --
---   sequence $ (`eval_line` (env)) <$> sorted_array                                  --
-----------------------------------------------------------------------------------------
+
+test_interp file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = create_environment content symbol_table
+  putStrLn $ show env
+  (runReaderT (interpreter 1)) env
+
 
 
 test_parser file = do
@@ -250,14 +218,14 @@ test_parser file = do
   putStrLn $ show sorted_array
 
 
-get_test_material file = do                                                        --
-  handle <- openFile file ReadMode                                                 --
-  content <- hGetContents handle                                                   --
+get_test_material file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
   table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
   let env = Program table program (fromList lm)
         where (lm,sa) = unzip $ parse_lines' (lines content)
               program = array (1,length sa) [x | x <- zip [1..] sa]
-  return (env)                        --
+  return (env)
 
 
 
@@ -275,9 +243,9 @@ test_number_10 = ConstExpr ( 10)
 test_var_x = Var 'X'
 test_var_y = Var 'Y'
 test_valuevar = VarVal test_var_x
--- test_valuefxn = FxnVal (RND (VarExpr test_var_x))
--- test_valueconst = ConstVal ( 10)
---test_expr_equals = CompEqualsExpr (VarExpr test_var_x) (ConstExpr ( 10))
+test_valuefxn = FxnVal (RND (test_var_x))
+test_valueconst = ConstVal ( 10)
+test_expr_equals = CompEqualsExpr (test_var_x) (ConstExpr ( 10))
 test_int_fxn_01 = INT (test_var_x)
 test_int_fxn_02 = INT (AddExpr (test_var_x) (test_var_y))
 test_int_fxn_03 = INT test_expr1
@@ -307,3 +275,23 @@ test_program_list_02 = ["30 LET C = 4",
                      "10 LET A = 2",
                      "40 PRINT A * (B + C)",
                      "50 END"]
+
+
+-- eval_sttmnt       :: Statement -> Environment -> IO ()
+-- eval_sttmnt s arr = (runReaderT $ eval_statement s) arr
+
+-- eval_statement    :: Statement -> ReaderT Environment IO ()
+-- eval_statement s = case s of
+--                       (LET (Var i) e) -> do
+--                         env <- ask
+--                         c <- liftIO (eval_expr env e)
+--                         liftIO $ writeArray (s_table env) i (ConstExpr c)
+--                       (PRINT e) -> do
+--                         env <- ask
+--                         e' <- liftIO (eval_expr env e)
+--                         liftIO $ putStrLn . show $ e'
+--                       END -> liftIO $ exitWith ExitSuccess
+--                       INPUT (Var c) -> do
+--                         env <- ask
+--                         inp <- liftIO $ readLn
+--                         liftIO $ writeArray (s_table env) c (ConstExpr inp)
