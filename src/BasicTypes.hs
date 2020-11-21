@@ -44,13 +44,15 @@ data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String}
                     | Parsed_line {ix:: Int, origLine:: Int, sttment:: Statement}
 
 data Environment = Program {s_table        :: IOArray Char Expression,
-                            basic_program  :: Array Int Line_statement,
+                            basic_program  :: Array Int Statement,
                             line_map       :: Map Int Int}
 
 
 -------------------------------------------------------------
 -- Derived instances for Data types                        --
 -------------------------------------------------------------
+
+
 
 instance Show Expression where
   show (AddExpr e1 e2)
