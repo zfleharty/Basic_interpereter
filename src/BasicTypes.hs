@@ -13,6 +13,7 @@ data Statement      = FOR Expression Expression Expression
                     | INPUT Expression
                     | LET Expression Expression
                     | NEXT Expression
+                    | NEXTLIST [Expression]
                     | PRINT Expression
                     | REM String
                     | END
@@ -108,9 +109,14 @@ instance Show Statement where
   show (INPUT x) = "INPUT " ++ (show x)
   show (LET x y) = "LET "   ++ (show x) ++ " = "    ++ (show y)
   show (NEXT x)  = "NEXT "  ++ (show x)
+  show (NEXTLIST (x:xs)) = "NEXT " ++ (show x) ++ (showCdr xs)
   show (PRINT e) = "PRINT " ++ (show e)
   show (REM s)   = "REM "   ++ (show (NoQuotes s))
   show (END)     = "END"
+
+showCdr :: [Expression] -> String
+showCdr [] = ""
+showCdr (x:xs) = ", " ++ show x ++ (showCdr xs)
 
 instance Show CompareExpr where
   show (CompEqualsExpr a b) =  show a ++ " = " ++ show b
