@@ -194,9 +194,11 @@ interpreter n = do
 
       finish <- liftIO $ (eval_expr env) e2
       (ConstExpr value) <- liftIO $ readArray tab c
-
-      if value >= finish
-        then interpreter ( for_line + 1)
+      
+      if value < finish
+        then do
+        liftIO $ writeArray tab c (ConstExpr (value + 1))
+        interpreter ( for_line + 1)
         else interpreter ( n + 1)
 
 
