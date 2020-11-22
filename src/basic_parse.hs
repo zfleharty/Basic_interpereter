@@ -32,6 +32,7 @@
    40 PRINT A * (B + C)
    50 END                                                             -}
 {----------------------------------------------------------------------}
+
 import Data.Array.IO
 import System.IO
 import Data.Map hiding ((!),assocs)
@@ -48,11 +49,6 @@ import System.Exit
 import Parser
 import BasicTypes
 import Data.Tuple
--- ================================== --
--- experimenting by Hoss              --
-import qualified Data.Text    as Text
-import qualified Data.Text.IO as Text
--- =================================== --
 
 tuple_line :: Parser Int
 tuple_line = do {num <- int; return num}
@@ -97,9 +93,10 @@ find_next _ [] = 0
 find_next var ((i,s):rest) = case s of
                                NEXT var -> i
                                _ -> find_next var rest
------------------------------------------------------------------------------
---------------------- Evaluate Expression types -----------------------------
------------------------------------------------------------------------------
+
+-----------------------------------------------------------------------
+--------------------- Evaluate Expression types -----------------------
+-----------------------------------------------------------------------
 
 eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
 
@@ -186,8 +183,10 @@ main = do
     then do handle <- openFile ("test.bas") ReadMode
             content <- hGetContents handle
 
-            table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-            let (Program tab sorted_ar linemap f_n n_f) = create_environment content table
+            table <- newArray ('A','Z')
+                     (ConstExpr 0) :: IO (IOArray Char Expression)
+            let (Program tab sorted_ar linemap f_n n_f) =
+                    create_environment content table
 
             putStrLn $ show f_n
             putStrLn $ show n_f
@@ -196,19 +195,19 @@ main = do
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
 
--- ============================== --
---  some definitions for testing  --
--- ============================== --
+-- ================================================================= --
+--          Some convenience definitions for testing                 --
+-- ================================================================= --
 
 
 test_interp file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
-  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  symbol_table <-
+     newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
   let env = create_environment content symbol_table
   putStrLn $ show env
   (runReaderT (interpreter 1)) env
-
 
 
 test_parser file = do
@@ -229,11 +228,11 @@ get_test_material file = do
 
 
 
+test_io_array = newArray ('A','Z')
+                         (ConstExpr 0) :: IO (IOArray Char Expression)
 
-
-test_io_array = newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-
-test_expr1 = (MultExpr (ConstExpr 2) (AddExpr (ConstExpr ( 3)) (ConstExpr ( 4.3))))
+test_expr1 = (MultExpr (ConstExpr 2)
+                       (AddExpr (ConstExpr ( 3)) (ConstExpr ( 4.3))))
 test_expr2 = (MultExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
 test_expr3 = (AddExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
 
@@ -244,7 +243,7 @@ test_var_x = Var 'X'
 test_var_y = Var 'Y'
 test_valuevar = VarVal test_var_x
 test_valuefxn = FxnVal (RND (test_var_x))
-test_valueconst = ConstVal ( 10)
+-- test_valueconst = ConstVal ( 10)
 test_expr_equals = CompEqualsExpr (test_var_x) (ConstExpr ( 10))
 test_int_fxn_01 = INT (test_var_x)
 test_int_fxn_02 = INT (AddExpr (test_var_x) (test_var_y))
@@ -254,8 +253,12 @@ test_rnd_fxn_02 = RND (AddExpr (test_var_x) (test_var_y))
 test_rnd_fxn_03 = RND (test_expr1)
 
 test_int_rnd_fxn_01 = FxnExpr "INT" (FxnExpr "RND" test_number_5)
-test_int_rnd_fxn_02 = FxnExpr "INT" (MultExpr (FxnExpr "RND" test_number_5) (AddExpr ((Var 'H')) test_number_1))
-test_int_rnd_fxn_03 = FxnExpr "INT" (AddExpr (MultExpr (FxnExpr "RND" test_number_5) (Var 'H')) (test_number_1))
+test_int_rnd_fxn_02 =
+  FxnExpr "INT" (MultExpr (FxnExpr "RND" test_number_5)
+                          (AddExpr ((Var 'H')) test_number_1))
+test_int_rnd_fxn_03 =
+  FxnExpr "INT" (AddExpr (MultExpr (FxnExpr "RND" test_number_5) (Var 'H'))
+                         (test_number_1))
 test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
   FORSTEP test_var_x test_number_5 test_number_10 test_number_1
@@ -263,18 +266,20 @@ test_statement_forstep =
 test_statement_input = INPUT test_var_y
 test_statement_let = LET test_var_x test_number_5
 test_statement_next = NEXT test_var_x
-test_program = "10 LET A = 2\n20 LET B = 3\n30 LET C = 4\n40 PRINT A * (B + C)\n50 END"
-test_program_fail = "10 LET A = 2\n20 LET B = 3\nLET C = 4\n40 PRINT A * (B + C)\n50 END"
-test_program_list = ["10 LET A = 2",
-                     "20 LET B = 3",
-                     "30 LET C = 4",
-                     "40 PRINT A * (B + C)",
-                     "50 END"]
+test_program         = "10 LET A = 2\n20 LET B = 3\n30 LET C = 4\n" ++
+                       "40 PRINT A * (B + C)\n50 END"
+test_program_fail    = "10 LET A = 2\n20 LET B = 3\nLET C = 4\n" ++
+                       "40 PRINT A * (B + C)\n50 END"
+test_program_list    = ["10 LET A = 2",
+                        "20 LET B = 3",
+                        "30 LET C = 4",
+                        "40 PRINT A * (B + C)",
+                        "50 END"]
 test_program_list_02 = ["30 LET C = 4",
-                     "20 LET B = 3",
-                     "10 LET A = 2",
-                     "40 PRINT A * (B + C)",
-                     "50 END"]
+                        "20 LET B = 3",
+                        "10 LET A = 2",
+                        "40 PRINT A * (B + C)",
+                        "50 END"]
 
 
 -- eval_sttmnt       :: Statement -> Environment -> IO ()
