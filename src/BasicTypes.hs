@@ -14,6 +14,7 @@ data Statement      = FOR Expression Expression Expression
                     | LET Expression Expression
                     | NEXT Expression
                     | PRINT Expression
+                    | REM String
                     | END
 
 data Expression     = AddExpr Expression Expression 
@@ -21,8 +22,6 @@ data Expression     = AddExpr Expression Expression
                     | ConstExpr {num::Float}
                     | Var {id:: Char}
                     | FxnExpr String Expression
-
-
 
 data CompareExpr    = CompEqualsExpr Expression Expression
 
@@ -41,7 +40,9 @@ data Function       = INT Expression
                     | RND Expression
 
 data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String}
-                    | Parsed_line {ix:: Int, origLine:: Int, sttment:: Statement}
+                    | Parsed_line {ix       :: Int,
+                                   origLine :: Int,
+                                   sttment  :: Statement}
 
 data Environment = Program {s_table        :: IOArray Char Expression,
                             basic_program  :: Array Int Statement,
@@ -54,9 +55,8 @@ data Environment = Program {s_table        :: IOArray Char Expression,
 -- Derived instances for Data types                        --
 -------------------------------------------------------------
 
-instance Num Expression where
-  (ConstExpr n1) + (ConstExpr n2) = (ConstExpr (n1 + n2))
-
+-- instance Num Expression where
+--   (ConstExpr n1) + (ConstExpr n2) = (ConstExpr (n1 + n2))
 
 instance Show Environment where
   show (Program _ program mapping fNMap _ ) =
@@ -65,9 +65,6 @@ instance Show Environment where
     "Program:      " ++ show program ++ "\n" ++
     "line_map:     " ++ show mapping ++ "\n" ++
     "FOR->Next:    " ++ show fNMap ++ "}"
-    
-
-
 
 instance Show Expression where
   show (AddExpr e1 e2)
@@ -84,8 +81,9 @@ instance Show Expression where
 
   show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
   show (ConstExpr x)    = show x
-  show (Var x)          = show x
-  show (FxnExpr s x)      = s ++ " " ++ show x
+  show (Var x)          = show (NoQuotesChar x)
+  -- show (FxnExpr s x)      = s ++ " " ++ show x
+  show (FxnExpr s x)      = s ++ "(" ++ (show x) ++ ")"
 
 instance Eq Line_statement where
   a == b = (line_num a) == (line_num b)
@@ -103,13 +101,15 @@ instance Show Statement where
   show (FOR x e1 e2)
     = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2)
   show (FORSTEP x e1 e2 e3)
-    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++ " STEP " ++ (show e3)
+    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++
+      " STEP " ++ (show e3)
 
   show (IF e x)  = "IF "    ++ (show e) ++ " THEN " ++ (show x)
   show (INPUT x) = "INPUT " ++ (show x)
   show (LET x y) = "LET "   ++ (show x) ++ " = "    ++ (show y)
   show (NEXT x)  = "NEXT "  ++ (show x)
   show (PRINT e) = "PRINT " ++ (show e)
+  show (REM s)   = "REM "   ++ (show (NoQuotes s))
   show (END)     = "END"
 
 instance Show CompareExpr where
