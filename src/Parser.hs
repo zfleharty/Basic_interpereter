@@ -46,6 +46,9 @@ p_to = string "TO"
 p_int :: Parser String
 p_int = string "INT"
 
+p_rem :: Parser String
+p_rem = string "REM"
+
 p_rnd :: Parser String
 p_rnd = string "RND"
 
@@ -63,17 +66,19 @@ for_statement   :: Parser Statement
 if_statement    :: Parser Statement
 input_statement :: Parser Statement
 let_statement   :: Parser Statement
--- next_statement  :: Parser Statement
+next_statement  :: Parser Statement
 print_statement :: Parser Statement
+rem_statement   :: Parser Statement
 
 statement =
   for_statement +++ input_statement +++ if_statement +++
   let_statement +++ next_statement +++ print_statement +++
-  end_statement
+  rem_statement +++ end_statement
   
-
+-- END
 end_statement = do {_ <- token p_end; return END}
 
+-- IF X = Y THEN 200
 if_statement = do
   token p_if
   boolExpr <- token equals_expr
@@ -81,11 +86,13 @@ if_statement = do
   c <- token p_const
   return (IF boolExpr c)
 
+-- INPUT X
 input_statement = do
   token p_input
   var <- token p_var
   return (INPUT var)
 
+-- FOR I = 1 TO H
 for_statement = do
   token p_for
   var <- token p_var
@@ -95,14 +102,7 @@ for_statement = do
   toExpr <- token expr
   return (FOR var fromExpr toExpr)
 
--- let_statement = do
---   _ <- token p_let
---   var <- token p_var
---   _ <- token equal
---   val <- token p_const
---   return (LET var (ConstExpr val))
-
--- working to upgrade:
+-- LET X = Y
 let_statement = do
   _ <- token p_let
   var <- token p_var
@@ -110,12 +110,20 @@ let_statement = do
   assigned <- token expr
   return (LET var assigned)
 
+-- NEXT I
 next_statement = do
   token p_next
   var <- token p_var
   return (NEXT var)
 
+-- PRINT X
 print_statement = do {token p_print; e <- expr; return (PRINT e)}
+
+-- REM This is a comment
+rem_statement = do
+  token p_rem
+  comment <- token (many item)
+  return (REM comment)
 
 -- =========================================== --
 --  Parsers (and supporting fxns) for          --
@@ -243,4 +251,4 @@ value    = do{
   char '(';
   e <- expr;
   char ')';
-  return e } +++  rnd_fxn_expr +++ int_fxn_expr +++ (num_expr) +++ (var_expr)-- b/c a fxn is also a possible value?
+  return e } +++  rnd_fxn_expr +++ int_fxn_expr +++ (num_expr) +++ (var_expr)
