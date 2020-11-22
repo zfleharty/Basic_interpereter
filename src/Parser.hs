@@ -67,13 +67,14 @@ if_statement    :: Parser Statement
 input_statement :: Parser Statement
 let_statement   :: Parser Statement
 next_statement  :: Parser Statement
+nextlist_statement :: Parser Statement
 print_statement :: Parser Statement
 rem_statement   :: Parser Statement
 
 statement =
   for_statement +++ input_statement +++ if_statement +++
-  let_statement +++ next_statement +++ print_statement +++
-  rem_statement +++ end_statement
+  let_statement +++ nextlist_statement +++ next_statement +++
+  print_statement +++ rem_statement +++ end_statement
   
 -- END
 end_statement = do {_ <- token p_end; return END}
@@ -110,11 +111,17 @@ let_statement = do
   assigned <- token expr
   return (LET var assigned)
 
--- NEXT I
+-- NEXT I or perhaps NEXT X, Y, Z?
 next_statement = do
   token p_next
   var <- token p_var
   return (NEXT var)
+
+-- NEXT X, Y, Z
+nextlist_statement = do
+  token p_next
+  varlist <- token var_expr_list
+  return (NEXTLIST varlist)
 
 -- PRINT X
 print_statement = do {token p_print; e <- expr; return (PRINT e)}
@@ -175,6 +182,35 @@ var_expr = do {var <- token upper; return ((Var var))}
 -- the first letters of functions like INT or RND?
 -- to ensure we're only dealing with single-letter vars
 -- var_expr = do {var <- upper; notAlphanum; return (VarExpr (Var var))}
+
+var_expr_list_cdr = do
+  _ <- token (char ',')
+  var <- token upper
+  return [Var var]
+
+-- var_expr_list = do
+--   var <- token upper
+--   possible_comma <- token item
+--   if possible_comma == ','
+--     then do
+--       -- putStrLn $ "var = " ++ (show var)
+--       varlisttail <- var_expr_list
+--       return ((Var var):varlisttail)
+--     else do
+--       let varlisttail = []
+--       return ((Var var):varlisttail)
+
+var_expr_list :: Parser [Expression]
+var_expr_list = do
+  var <- token upper
+  comma <- token (char ',')
+  varlisttail <- var_expr_list +++ var_expr_list_last
+  return ((Var var):varlisttail)
+
+var_expr_list_last :: Parser [Expression]
+var_expr_list_last = do
+  var <- token upper
+  return [Var var]
 
 num_expr = do {d <- token int; return (ConstExpr (realToFrac d))}
 
