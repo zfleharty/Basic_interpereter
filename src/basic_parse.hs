@@ -40,7 +40,7 @@ import Parselib
 import System.Random
 import Data.Ix()
 import Data.Array
-import Data.List
+import Data.List hiding (lookup)
 import Data.Array()
 import Control.Monad.Trans
 import Control.Monad.Trans.State
@@ -49,6 +49,7 @@ import System.Exit
 import Parser
 import BasicTypes
 import Data.Tuple
+import Prelude hiding (lookup)
 
 tuple_line :: Parser Int
 tuple_line = do {num <- int; return num}
@@ -156,7 +157,7 @@ interpreter n = do
   case s of
     (LET (Var i) e) -> do
       c <- liftIO (eval_expr env e)
-      liftIO $ writeArray (s_table env) i (ConstExpr c)
+      liftIO $ writeArray tab i (ConstExpr c)
       interpreter (n+1)
 
     (PRINT e) -> do
@@ -168,8 +169,44 @@ interpreter n = do
 
     INPUT (Var c) -> do
       inp <- liftIO $ readLn
-      liftIO $ writeArray (s_table env) c (ConstExpr inp)
+      liftIO $ writeArray tab c (ConstExpr inp)
       interpreter (n+1)
+
+
+    FOR (Var c) e1 e2 -> do
+      start <- liftIO $ (eval_expr env) e1
+      finish <- liftIO $ (eval_expr env) e2
+      liftIO $ writeArray tab c (ConstExpr start)
+      if start >= finish
+        then case (lookup n for_next) of
+               Nothing -> do
+                 liftIO $ putStrLn "NextNotFound"
+                 interpreter (n + 1)
+               Just l -> interpreter (l + 1)
+        else interpreter (n + 1)
+
+
+    NEXT (Var c) -> do
+      let for_line = case (lookup n next_for) of
+            Nothing -> n
+            Just l -> l
+      let (FOR _ e1 e2) = program ! for_line
+
+      finish <- liftIO $ (eval_expr env) e2
+      (ConstExpr value) <- liftIO $ readArray tab c
+
+      if value >= finish
+        then interpreter ( for_line + 1)
+        else interpreter ( n + 1)
+
+
+    IF compExp e -> do
+      bool <- eval_comp_expr env compExp
+      org_line <- liftIO $ eval_expr env e
+      let next_line = case (lookup (round org_line) lines) of
+            Nothing -> n
+            Just l -> l
+      if bool then interpreter next_line else interpreter (n + 1)
 
     _ -> do
       liftIO $ putStrLn "could not match"
