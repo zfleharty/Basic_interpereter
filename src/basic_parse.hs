@@ -241,6 +241,7 @@ test_number_5 = ConstExpr ( 5)
 test_number_10 = ConstExpr ( 10)
 test_var_x = Var 'X'
 test_var_y = Var 'Y'
+test_var_z = Var 'Z'
 test_valuevar = VarVal test_var_x
 test_valuefxn = FxnVal (RND (test_var_x))
 -- test_valueconst = ConstVal ( 10)
@@ -266,6 +267,7 @@ test_statement_forstep =
 test_statement_input = INPUT test_var_y
 test_statement_let = LET test_var_x test_number_5
 test_statement_next = NEXT test_var_x
+test_statement_nextlist = NEXTLIST [test_var_x, test_var_y, test_var_z]
 test_program         = "10 LET A = 2\n20 LET B = 3\n30 LET C = 4\n" ++
                        "40 PRINT A * (B + C)\n50 END"
 test_program_fail    = "10 LET A = 2\n20 LET B = 3\nLET C = 4\n" ++
