@@ -3,7 +3,7 @@ module Parser where
 import BasicTypes
 import Parselib
 import Data.Char
-  
+import Prelude hiding (LT,GT)
 -- =========================================== --
 --  Parsers for special individual characters  --
 -- =========================================== --
@@ -18,6 +18,9 @@ right = char (')')
 
 p_end :: Parser String
 p_end = string "END"
+
+p_goto :: Parser String
+p_goto = string "GOTO"
 
 p_for :: Parser String
 p_for = string "FOR"
@@ -71,27 +74,39 @@ nextlist_statement :: Parser Statement
 print_statement :: Parser Statement
 rem_statement   :: Parser Statement
 
-statement =
-  for_statement +++ input_statement +++ if_statement +++
-  let_statement +++ nextlist_statement +++ next_statement +++
-  print_statement +++ rem_statement +++ end_statement
+
+statement_list = [for_statement,input_statement,if_statement,let_statement,nextlist_statement,next_statement,
+                 print_statement,rem_statement,end_statement,goto_statement]
+statement = concatParsers statement_list
   
+
+
 -- END
 end_statement = do {_ <- token p_end; return END}
 
 -- IF X = Y THEN 200
 if_statement = do
   token p_if
-  boolExpr <- token equals_expr
+  boolExpr <- token comp_expr
   token p_then
   c <- token p_const
   return (IF boolExpr c)
 
+
+
+goto_statement = do
+  token p_goto
+  line <- nat
+  return (GOTO line)
+
+
 -- INPUT X
-input_statement = do
-  token p_input
-  var <- token p_var
-  return (INPUT var)
+input_statement = do {
+  token p_input;
+  s <- todelim ';';
+  token (char ';');
+  var <- token p_var;
+  return (INPUT s var)} +++ do {token p_input; var <- token p_var; return (INPUT "" var)}
 
 -- FOR I = 1 TO H
 for_statement = do
@@ -124,7 +139,21 @@ nextlist_statement = do
   return (NEXTLIST varlist)
 
 -- PRINT X
-print_statement = do {token p_print; e <- expr; return (PRINT e)}
+print_statement = do {token p_print; e <- print_list; return (PRINT e)}
+
+print_list = expr_colon +++ expr_comma +++ expr
+
+expr_colon = do
+  e <- expr
+  (token (char ';'))
+  return (StringColon e)
+
+expr_comma = do
+  e <- expr
+  token (char ',')
+  return (StringComma e)
+  
+  
 
 -- REM This is a comment
 rem_statement = do
@@ -218,12 +247,41 @@ num_expr = do {d <- token int; return (ConstExpr (realToFrac d))}
 
 -- here try looking for int_fxn_expr FIRST so that the 1st letter(s)
 -- not mistaken for variables?
-expr     =   add_expr
-         +++ mult_expr
-         +++ add_expr_paren
-         +++ rnd_fxn_expr
-         +++ int_fxn_expr
 
+
+
+------------------------------------------------------------------------------------
+-- List of expressions to mappend together. When new expression parser is created --
+-- add to this list definition to mappend it as part of the full expression type  --
+-- parser                                                                         --
+------------------------------------------------------------------------------------
+expr_list = [comp_expr,add_expr,mult_expr,add_expr_paren,rnd_fxn_expr,int_fxn_expr,str_expr]
+
+expr = concatParsers expr_list
+
+comp_parsers = string <$> ["=","<>",">",">=","<","<="]
+
+
+
+comp_expr = do                          
+  e1 <- token add_expr
+  o <- token $ concatParsers comp_parsers
+  e2 <- token add_expr                  
+  let op = case o of                             
+        "=" -> (==) 
+        "<>" -> (/=)
+        ">" -> (>)
+        ">=" -> (>=)
+        "<" -> (<)
+        "<=" -> (<=)
+  return (Compare e1 e2 op)                  
+
+str_expr = do
+  string "\""
+  s <- token $ todelim '\"'
+  string "\""
+  return (String' s)
+  
 add_expr  = do {
   x <- token mult_expr;
   token (char '+');
@@ -236,7 +294,7 @@ add_expr_paren = do {
   token (char '+');
   y <- token add_expr;
   token (char ')');
-  return (AddExpr x y)} +++ mult_expr
+  return (AddExpr x y)} 
 
 mult_expr = do {
   x <- token value;

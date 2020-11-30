@@ -49,7 +49,7 @@ import System.Exit
 import Parser
 import BasicTypes
 import Data.Tuple
-import Prelude hiding (lookup)
+import Prelude hiding (lookup,LT,GT)
 
 tuple_line :: Parser Int
 tuple_line = do {num <- int; return num}
@@ -99,18 +99,23 @@ find_next var ((i,s):rest) = case s of
 --------------------- Evaluate Expression types -----------------------
 -----------------------------------------------------------------------
 
+
+
+
+
+
 eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
 
-eval_comp_expr' e = do
+eval_comp_expr' (Compare e1 e2 op) = do
   tab <- ask
-  case e of
-    (CompEqualsExpr e1 e2) -> do
-      v1 <- liftIO $ (eval_expr tab e1)
-      v2 <- liftIO $ (eval_expr tab e2)
-      return $ v1 == v2
-
+  v1 <- liftIO $ (eval_expr tab e1)
+  v2 <- liftIO $ (eval_expr tab e2)
+  return $ v1 `op` v2
+                    
 
 eval_expr arr e = (runReaderT $ eval_expr' e) arr
+
+
 
 eval_expr'   :: Expression -> ReaderT (Environment) IO (Float)
 eval_expr' e = do
@@ -165,9 +170,10 @@ interpreter n = do
       liftIO $ putStrLn . show $ e'
       interpreter (n+1)
 
-    END -> liftIO $ exitWith ExitSuccess
+    END -> liftIO $ return ()
 
-    INPUT (Var c) -> do
+    INPUT (string) (Var c) -> do
+      (liftIO . putStr) string
       inp <- liftIO $ readLn
       liftIO $ writeArray tab c (ConstExpr inp)
       interpreter (n+1)
@@ -210,6 +216,13 @@ interpreter n = do
             Just l -> l
       if bool then interpreter next_line else interpreter (n + 1)
 
+
+    GOTO i -> do
+      let l = case (lookup i lines) of
+            Nothing -> l
+            Just a -> a
+      interpreter l
+    
     _ -> do
       liftIO $ putStrLn "could not match"
       interpreter (n+1)
@@ -265,8 +278,6 @@ get_test_material file = do
               program = array (1,length sa) [x | x <- zip [1..] sa]
   return (env)
 
-
-
 test_io_array = newArray ('A','Z')
                          (ConstExpr 0) :: IO (IOArray Char Expression)
 
@@ -303,7 +314,7 @@ test_statement_for = FOR test_var_x test_number_5 test_number_10
 test_statement_forstep =
   FORSTEP test_var_x test_number_5 test_number_10 test_number_1
 --test_statement_if = IF test_expr_equals ( 100)
-test_statement_input = INPUT test_var_y
+test_statement_input = INPUT "" test_var_y
 test_statement_let = LET test_var_x test_number_5
 test_statement_next = NEXT test_var_x
 test_statement_nextlist = NEXTLIST [test_var_x, test_var_y, test_var_z]
