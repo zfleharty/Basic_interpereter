@@ -298,9 +298,11 @@ add_expr_paren = do {
 
 mult_expr = do {
   x <- token value;
-  token (char '*');
+  op <- token (sat (`elem` "/*"));
   y <- token mult_expr;
-  return (MultExpr x y)} +++ value
+  return (case op of
+      '*'-> (MultExpr x y)
+      '/' -> (DivExpr x y))} +++ value
 
 -- For the INT() situations
 -- This and the rnd version might benefit from stricter linking

@@ -22,6 +22,7 @@ data Statement      = FOR Expression Expression Expression
 
 data Expression     = AddExpr Expression Expression 
                     | MultExpr Expression Expression
+                    | DivExpr Expression Expression
                     | ConstExpr {num::Float}
                     | ExpressionList [Expression]
                     | StringComma Expression 
@@ -109,6 +110,7 @@ instance Show Expression where
     (show e1) ++ " * " ++ "(" ++ (show e2) ++ ")"
 
   show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
+  show (DivExpr e1 e2) = (show e1) ++ " / " ++ (show e2)
   show (ConstExpr x)    = show x
   show (Var x)          = show (NoQuotesChar x)
   show (StringColon e)  = show (e)
