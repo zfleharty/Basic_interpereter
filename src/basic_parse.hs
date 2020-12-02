@@ -106,10 +106,17 @@ find_next var ((i,s):rest) = case s of
 
 eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
 
-eval_comp_expr' (Compare e1 e2 op) = do
+eval_comp_expr' (Compare e1 e2 op') = do
   tab <- ask
   v1 <- liftIO $ (eval_expr tab e1)
   v2 <- liftIO $ (eval_expr tab e2)
+  let op = case op' of
+        "=" -> (==)
+        "<>" -> (/=)
+        ">" -> (>)
+        ">=" -> (>=)
+        "<" -> (<)
+        "<=" -> (<=)
   return $ v1 `op` v2
                     
 
@@ -149,10 +156,22 @@ eval_expr' e = do
              else do
              rand <- liftIO $ randomRIO (0::Float,1::Float)
              return rand
-
          (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
+
+
+
+print_expression :: Environment -> Expression -> IO ()
+print_expression env e = do
+  case e of
+    e'@(StringColon _) -> putStrLn $ show e'
+    e'@(StringComma _) -> putStrLn $ show e'
+    e'@(String' _)     -> putStrLn $ show e'
+    _ -> do
+      e' <- liftIO $ eval_expr env e
+      putStrLn $ show e'
+
 
 interpreter   :: Int -> ReaderT Environment IO ()
 interpreter n = do
@@ -161,13 +180,19 @@ interpreter n = do
 
   case s of
     (LET (Var i) e) -> do
-      c <- liftIO (eval_expr env e)
+      c <- liftIO $ (eval_expr env) e
       liftIO $ writeArray tab i (ConstExpr c)
       interpreter (n+1)
 
-    (PRINT e) -> do
-      e' <- liftIO (eval_expr env e)
-      liftIO $ putStrLn . show $ e'
+
+    (PRINT es) -> do
+      ---------------------------------------------
+      -- e' <- liftIO <$> ((eval_expr env) <$> e --
+      -- liftIO $ (putStrLn . show) e'           --
+      ---------------------------------------------
+--      let print_expr = (\e -> do {e' <- liftIO $ (eval_expr env) e; liftIO $ (putStrLn . show) e'}) :: Expression -> IO ()
+  --    liftIO $ (sequence $ (print_expr) <$> es)
+      liftIO $ sequence $ (print_expression env) <$> es
       interpreter (n+1)
 
     END -> liftIO $ return ()

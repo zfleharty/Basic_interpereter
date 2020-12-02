@@ -22,7 +22,7 @@ combinators that were not discussed in the article for reasons of space:
 module Parselib
    (Parser, item, sat, (+++), string, many, many1, sepby, sepby1,
     chainl, chainl1, char, digit, lower, upper, letter, alphanum,
-    symb, ident, nat, int, token, apply, parse, space, integer, natural,
+    symb, ident, nat, int, token, apply, parse, space, integer, natural, mplus,
     todelim, concatParsers) where
 
 import Data.Char

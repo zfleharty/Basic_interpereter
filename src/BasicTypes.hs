@@ -15,7 +15,7 @@ data Statement      = FOR Expression Expression Expression
                     | NEXT Expression
                     | NEXTLIST [Expression]
                     | GOTO Int
-                    | PRINT Expression
+                    | PRINT [Expression]
                     | REM String
                     | END
 
@@ -30,7 +30,7 @@ data Expression     = AddExpr Expression Expression
                     | String' String
                     | Var {id:: Char}
                     | FxnExpr String Expression
-                    | Compare Expression Expression (Float -> Float -> Bool)
+                    | Compare Expression Expression String
 
 
 data Expression' = Num' Int
@@ -117,7 +117,7 @@ instance Show Expression where
   show (StringComma e)  = show (e) ++ "\t"
   show (String' s)      = s
   show (FxnExpr s x)    = s ++ "(" ++ (show x) ++ ")"
-  show (Compare e1 e2 _)= show e1 ++ " " ++ "?| " ++ show e2 
+  show (Compare e1 e2 op)= show e1 ++ " " ++ show op ++ " " ++ show e2
 
 instance Eq Line_statement where
   a == b = (line_num a) == (line_num b)

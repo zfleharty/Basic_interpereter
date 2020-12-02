@@ -8,6 +8,13 @@ import Prelude hiding (LT,GT)
 --  Parsers for special individual characters  --
 -- =========================================== --
 
+splitOneOf' _ [] res = [res]
+splitOneOf' delims (x:xs) res = if elem x delims
+                                then (res++[d|d<-delims, d==x]) : (splitOneOf' delims xs [])
+                                else splitOneOf' delims xs (res++[x])
+splitOneOf d xs = splitOneOf' d xs []
+
+
 equal = char ('=')
 left  = char ('(')
 right = char (')')
@@ -71,7 +78,7 @@ input_statement :: Parser Statement
 let_statement   :: Parser Statement
 next_statement  :: Parser Statement
 nextlist_statement :: Parser Statement
-print_statement :: Parser Statement
+--print_statement :: Parser Statement
 rem_statement   :: Parser Statement
 
 
@@ -141,17 +148,23 @@ nextlist_statement = do
 -- PRINT X
 print_statement = do {token p_print; e <- print_list; return (PRINT e)}
 
-print_list = expr_colon +++ expr_comma +++ expr
+print_list = expr_colon +++ expr_comma +++ single_expr 
 
+single_expr = do
+  e <- expr
+  return [e]
+  
 expr_colon = do
   e <- expr
   (token (char ';'))
-  return (StringColon e)
+  es <- many expr
+  return $ (StringColon e):es
 
 expr_comma = do
   e <- expr
   token (char ',')
-  return (StringComma e)
+  es <- many expr
+  return $ (StringComma e):es
   
   
 
@@ -268,12 +281,12 @@ comp_expr = do
   o <- token $ concatParsers comp_parsers
   e2 <- token add_expr                  
   let op = case o of                             
-        "=" -> (==) 
-        "<>" -> (/=)
-        ">" -> (>)
-        ">=" -> (>=)
-        "<" -> (<)
-        "<=" -> (<=)
+        "=" -> "="
+        "<>" -> "/="
+        ">" -> ">"
+        ">=" -> ">="
+        "<" -> "<"
+        "<=" -> "<="
   return (Compare e1 e2 op)                  
 
 str_expr = do
