@@ -186,12 +186,6 @@ interpreter n = do
 
 
     (PRINT es) -> do
-      ---------------------------------------------
-      -- e' <- liftIO <$> ((eval_expr env) <$> e --
-      -- liftIO $ (putStrLn . show) e'           --
-      ---------------------------------------------
---      let print_expr = (\e -> do {e' <- liftIO $ (eval_expr env) e; liftIO $ (putStrLn . show) e'}) :: Expression -> IO ()
-  --    liftIO $ (sequence $ (print_expr) <$> es)
       liftIO $ sequence $ (print_expression env) <$> es
       interpreter (n+1)
 
@@ -272,6 +266,7 @@ main = do
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
 
+
 -- ================================================================= --
 --          Some convenience definitions for testing                 --
 -- ================================================================= --
@@ -303,24 +298,24 @@ get_test_material file = do
               program = array (1,length sa) [x | x <- zip [1..] sa]
   return (env)
 
+
+
+
 test_io_array = newArray ('A','Z')
                          (ConstExpr 0) :: IO (IOArray Char Expression)
 
-test_expr1 = (MultExpr (ConstExpr 2)
-                       (AddExpr (ConstExpr ( 3)) (ConstExpr ( 4.3))))
+test_expr1 = (MultExpr (ConstExpr 2) (AddExpr (ConstExpr ( 3)) (ConstExpr ( 4.3))))
 test_expr2 = (MultExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
 test_expr3 = (AddExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
 
-test_number_1 = ConstExpr ( 1)
-test_number_5 = ConstExpr ( 5)
-test_number_10 = ConstExpr ( 10)
-test_var_x = Var 'X'
-test_var_y = Var 'Y'
-test_var_z = Var 'Z'
-test_valuevar = VarVal test_var_x
-test_valuefxn = FxnVal (RND (test_var_x))
--- test_valueconst = ConstVal ( 10)
-test_expr_equals = CompEqualsExpr (test_var_x) (ConstExpr ( 10))
+test_number_1   = ConstExpr ( 1)
+test_number_5   = ConstExpr ( 5)
+test_number_10  = ConstExpr ( 10)
+test_var_x      = Var 'X'
+test_var_y      = Var 'Y'
+test_var_z      = Var 'Z'
+test_valuevar   = VarVal test_var_x
+test_valuefxn   = FxnVal (RND (test_var_x))
 test_int_fxn_01 = INT (test_var_x)
 test_int_fxn_02 = INT (AddExpr (test_var_x) (test_var_y))
 test_int_fxn_03 = INT test_expr1
@@ -328,21 +323,21 @@ test_rnd_fxn_01 = RND (test_var_y)
 test_rnd_fxn_02 = RND (AddExpr (test_var_x) (test_var_y))
 test_rnd_fxn_03 = RND (test_expr1)
 
-test_int_rnd_fxn_01 = FxnExpr "INT" (FxnExpr "RND" test_number_5)
-test_int_rnd_fxn_02 =
-  FxnExpr "INT" (MultExpr (FxnExpr "RND" test_number_5)
-                          (AddExpr ((Var 'H')) test_number_1))
-test_int_rnd_fxn_03 =
-  FxnExpr "INT" (AddExpr (MultExpr (FxnExpr "RND" test_number_5) (Var 'H'))
-                         (test_number_1))
-test_statement_for = FOR test_var_x test_number_5 test_number_10
-test_statement_forstep =
-  FORSTEP test_var_x test_number_5 test_number_10 test_number_1
---test_statement_if = IF test_expr_equals ( 100)
-test_statement_input = INPUT "" test_var_y
-test_statement_let = LET test_var_x test_number_5
-test_statement_next = NEXT test_var_x
+test_int_rnd_fxn_01
+  = FxnExpr "INT" (FxnExpr "RND" test_number_5)
+test_int_rnd_fxn_02
+  = FxnExpr "INT" (MultExpr (FxnExpr "RND" test_number_5) (AddExpr ((Var 'H')) test_number_1))
+test_int_rnd_fxn_03
+  = FxnExpr "INT" (AddExpr (MultExpr (FxnExpr "RND" test_number_5) (Var 'H')) (test_number_1))
+  
+test_statement_for      = FOR test_var_x test_number_5 test_number_10
+test_statement_forstep  = FORSTEP test_var_x test_number_5 test_number_10 test_number_1
+test_statement_input    = INPUT "" test_var_y
+test_statement_let      = LET test_var_x test_number_5
+test_statement_next     = NEXT test_var_x
 test_statement_nextlist = NEXTLIST [test_var_x, test_var_y, test_var_z]
+
+
 test_program         = "10 LET A = 2\n20 LET B = 3\n30 LET C = 4\n" ++
                        "40 PRINT A * (B + C)\n50 END"
 test_program_fail    = "10 LET A = 2\n20 LET B = 3\nLET C = 4\n" ++
@@ -357,23 +352,3 @@ test_program_list_02 = ["30 LET C = 4",
                         "10 LET A = 2",
                         "40 PRINT A * (B + C)",
                         "50 END"]
-
-
--- eval_sttmnt       :: Statement -> Environment -> IO ()
--- eval_sttmnt s arr = (runReaderT $ eval_statement s) arr
-
--- eval_statement    :: Statement -> ReaderT Environment IO ()
--- eval_statement s = case s of
---                       (LET (Var i) e) -> do
---                         env <- ask
---                         c <- liftIO (eval_expr env e)
---                         liftIO $ writeArray (s_table env) i (ConstExpr c)
---                       (PRINT e) -> do
---                         env <- ask
---                         e' <- liftIO (eval_expr env e)
---                         liftIO $ putStrLn . show $ e'
---                       END -> liftIO $ exitWith ExitSuccess
---                       INPUT (Var c) -> do
---                         env <- ask
---                         inp <- liftIO $ readLn
---                         liftIO $ writeArray (s_table env) c (ConstExpr inp)

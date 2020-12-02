@@ -33,26 +33,6 @@ data Expression     = AddExpr Expression Expression
                     | Compare Expression Expression String
 
 
-data Expression' = Num' Int
-                 | ID Char
-                 | Op Expression' Expression' (Expression' -> Expression' -> Float)
-                 | Comp Expression' Expression' (Expression' -> Expression' -> Bool)
-
-
-data CompareExpr    = CompEqualsExpr Expression Expression
-                    | LT Expression Expression
-                    | GT Expression Expression
-                    | LTE Expression Expression
-                    | GTE Expression Expression
-                    | NE Expression Expression
-
-
-data NegateExpr     = Neg PowerExpr
-                    | Pexpr PowerExpr -- fix this!
-
-data PowerExpr      = Pow Value PowerExpr
-                    | PowValue Value
-
 data Value          = ParensVal Expression
                     | VarVal Expression
                     | FxnVal Function
@@ -77,19 +57,9 @@ data Environment = Program {s_table        :: IOArray Char Expression,
 -- Derived instances for Data types                        --
 -------------------------------------------------------------
 
--- instance Num Expression where
---   (ConstExpr n1) + (ConstExpr n2) = (ConstExpr (n1 + n2))
-
-instance Show CompareExpr where
-  show (CompEqualsExpr e1 e2) = (show e1) ++ "==" ++ (show e2)
-  show (LT e1 e2)             = (show e1) ++ "<" ++ (show e2)
-  show (GT e1 e2)             = (show e1) ++ ">" ++ (show e2)
-  show (LTE e1 e2)            = (show e1) ++ "<=" ++ (show e2)
-  show (GTE e1 e2)            = (show e1) ++ ">=" ++ (show e2)
-  show (NE e1 e2)             = (show e1) ++ "!=" ++ (show e2)
 
 instance Show Environment where
-  show (Program _ program mapping fNMap _ ) =
+  show (Program array program mapping fNMap _ ) =
     "Environment{\n" ++
     "Symbol_table: " ++ "NO SHOW INSTANCE FOR IOARRAY YET\n" ++
     "Program:      " ++ show program ++ "\n" ++
@@ -106,17 +76,17 @@ instance Show Expression where
   show (MultExpr e1@(AddExpr e11 e12) e2)
     = "(" ++ (show e1) ++ ")" ++ " * " ++ (show e2)
 
-  show (MultExpr e1 e2@(AddExpr e21 e22)) =
-    (show e1) ++ " * " ++ "(" ++ (show e2) ++ ")"
+  show (MultExpr e1 e2@(AddExpr e21 e22))
+    = (show e1) ++ " * " ++ "(" ++ (show e2) ++ ")"
 
-  show (MultExpr e1 e2) = (show e1) ++ " * " ++ (show e2)
-  show (DivExpr e1 e2) = (show e1) ++ " / " ++ (show e2)
-  show (ConstExpr x)    = show x
-  show (Var x)          = show (NoQuotesChar x)
-  show (StringColon e)  = show (e)
-  show (StringComma e)  = show (e) ++ "\t"
-  show (String' s)      = s
-  show (FxnExpr s x)    = s ++ "(" ++ (show x) ++ ")"
+  show (MultExpr e1 e2)  = (show e1) ++ " * " ++ (show e2)
+  show (DivExpr e1 e2)   = (show e1) ++ " / " ++ (show e2)
+  show (ConstExpr x)     = show x
+  show (Var x)           = show (NoQuotesChar x)
+  show (StringColon e)   = show (e)
+  show (StringComma e)   = show (e) ++ "\t"
+  show (String' s)       = s
+  show (FxnExpr s x)     = s ++ "(" ++ (show x) ++ ")"
   show (Compare e1 e2 op)= show e1 ++ " " ++ show op ++ " " ++ show e2
 
 instance Eq Line_statement where
@@ -138,15 +108,15 @@ instance Show Statement where
     = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++
       " STEP " ++ (show e3)
 
-  show (IF e x)  = "IF "    ++ (show e) ++ " THEN " ++ (show x)
-  show (INPUT s x) = "INPUT " ++ s ++ " " ++ (show x)
-  show (LET x y) = "LET "   ++ (show x) ++ " = "    ++ (show y)
-  show (NEXT x)  = "NEXT "  ++ (show x)
+  show (IF e x)          = "IF "    ++ (show e) ++ " THEN " ++ (show x)
+  show (INPUT s x)       = "INPUT " ++ s ++ " " ++ (show x)
+  show (LET x y)         = "LET "   ++ (show x) ++ " = "    ++ (show y)
+  show (NEXT x)          = "NEXT "  ++ (show x)
   show (NEXTLIST (x:xs)) = "NEXT " ++ (show x) ++ (showCdr xs)
-  show (PRINT e) = "PRINT " ++ (show e)
-  show (REM s)   = "REM "   ++ (show (NoQuotes s))
-  show (GOTO n) = "GOTO " ++ show n
-  show (END)     = "END"
+  show (PRINT e)         = "PRINT " ++ (show e)
+  show (REM s)           = "REM "   ++ (show (NoQuotes s))
+  show (GOTO n)          = "GOTO " ++ show n
+  show (END)             = "END"
 
 showCdr :: [Expression] -> String
 showCdr [] = ""
@@ -162,7 +132,7 @@ instance Show Function where
   show (INT e)    = "INT(" ++ (show e) ++ ")"
   show (RND e)    = "RND(" ++ (show e) ++ ")"
 
-newtype NoQuotes = NoQuotes String
+newtype NoQuotes     = NoQuotes String
 newtype NoQuotesChar = NoQuotesChar Char
 
 instance Show NoQuotes where
