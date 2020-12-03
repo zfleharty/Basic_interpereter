@@ -294,9 +294,7 @@ get_test_material file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
   table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = Program table program (fromList lm)
-        where (lm,sa) = unzip $ parse_lines' (lines content)
-              program = array (1,length sa) [x | x <- zip [1..] sa]
+  let env = create_environment content table
   return (env)
 
 
