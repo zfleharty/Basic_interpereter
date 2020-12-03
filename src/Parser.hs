@@ -128,13 +128,13 @@ single_expr = do
 expr_colon = do
   e <- expr
   (token (char ';'))
-  es <- many expr
+  es <- print_list
   return $ (StringColon e):es
 
 expr_comma = do
   e <- expr
   token (char ',')
-  es <- many expr
+  es <- print_list
   return $ (StringComma e):es
   
   

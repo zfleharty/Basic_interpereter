@@ -165,12 +165,12 @@ eval_expr' e = do
 print_expression :: Environment -> Expression -> IO ()
 print_expression env e = do
   case e of
-    e'@(StringColon _) -> putStrLn $ show e'
-    e'@(StringComma _) -> putStrLn $ show e'
-    e'@(String' _)     -> putStrLn $ show e'
+    e'@(StringColon _) -> putStr $ show e'
+    e'@(StringComma _) -> putStr $ show e'
+    e'@(String' _)     -> putStr $ show e'
     _ -> do
       e' <- liftIO $ eval_expr env e
-      putStrLn $ show e'
+      putStr $ show e'
 
 
 interpreter   :: Int -> ReaderT Environment IO ()
@@ -187,6 +187,7 @@ interpreter n = do
 
     (PRINT es) -> do
       liftIO $ sequence $ (print_expression env) <$> es
+      liftIO $ putStrLn ""
       interpreter (n+1)
 
     END -> liftIO $ return ()
