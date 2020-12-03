@@ -20,7 +20,8 @@ data Statement      = FOR Expression Expression Expression
                     | END
 
 
-data Expression     = AddExpr Expression Expression 
+data Expression     = AddExpr Expression Expression
+                    | SubExpr Expression Expression
                     | MultExpr Expression Expression
                     | DivExpr Expression Expression
                     | ConstExpr {num::Float}
@@ -67,8 +68,7 @@ instance Show Environment where
     "FOR->Next:    " ++ show fNMap ++ "}"
 
 instance Show Expression where
-  show (AddExpr e1 e2)
-    = (show e1) ++ " + " ++ (show e2)
+
 
   show (MultExpr e1@(AddExpr e11 e12) e2@(AddExpr e21 e22))
     = "(" ++ (show e1) ++ ")" ++ " * " ++ "(" ++ (show e2) ++ ")"
@@ -78,7 +78,8 @@ instance Show Expression where
 
   show (MultExpr e1 e2@(AddExpr e21 e22))
     = (show e1) ++ " * " ++ "(" ++ (show e2) ++ ")"
-
+  show (AddExpr e1 e2)   = (show e1) ++ " + " ++ (show e2)
+  show (SubExpr e1 e2)   = (show e1) ++ " - " ++ (show e2)
   show (MultExpr e1 e2)  = (show e1) ++ " * " ++ (show e2)
   show (DivExpr e1 e2)   = (show e1) ++ " / " ++ (show e2)
   show (ConstExpr x)     = show x

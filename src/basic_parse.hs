@@ -140,6 +140,16 @@ eval_expr' e = do
            i1 <- liftIO $ r e1
            i2 <- liftIO $ r e2
            return $ i1 * i2
+           
+         DivExpr e1 e2 -> do
+           i1 <- liftIO $ r e1
+           i2 <- liftIO $ r e2
+           return $ i1 / i2
+
+         SubExpr e1 e2 -> do
+           i1 <- liftIO $ r e1
+           i2 <- liftIO $ r e2
+           return $ i1 - i2
 
          ConstExpr c ->  return $ c
 
@@ -229,7 +239,10 @@ interpreter n = do
 
 
     IF compExp e -> do
+--      liftIO . putStrLn $ show e ++ " " ++ show compExp
+      
       bool <- eval_comp_expr env compExp
+  --    liftIO . putStrLn $ show bool
       org_line <- liftIO $ eval_expr env e
       let next_line = case (lookup (round org_line) lines) of
             Nothing -> n

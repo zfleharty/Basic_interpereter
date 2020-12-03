@@ -247,9 +247,11 @@ str_expr = do
   
 add_expr  = do {
   x <- token mult_expr;
-  token (char '+');
+  op <- token (sat (`elem` "+-"));
   y <- token add_expr;
-  return (AddExpr x y)} +++ mult_expr
+  return (case op of
+            '+' -> AddExpr x y
+            '-' -> SubExpr x y)} +++ mult_expr
 
 add_expr_paren = do {
   token (char '(');
