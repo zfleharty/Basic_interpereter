@@ -53,19 +53,22 @@ space1  = many1 (sat isSpace)
 -- =========================================== --
 --  Parsers for particular Statements          --
 -- =========================================== --
-statement_list  :: [Parser Statement]
-statement       :: Parser Statement
-end_statement   :: Parser Statement
-for_statement   :: Parser Statement
-if_statement    :: Parser Statement
-input_statement :: Parser Statement
-let_statement   :: Parser Statement
-print_statement :: Parser Statement
-rem_statement   :: Parser Statement
+statement_list     :: [Parser Statement]
+statement          :: Parser Statement
+end_statement      :: Parser Statement
+for_statement      :: Parser Statement
+if_statement       :: Parser Statement
+input_statement    :: Parser Statement
+let_statement      :: Parser Statement
+next_statement     :: Parser Statement
+nextlist_statement :: Parser Statement
+print_statement    :: Parser Statement
+rem_statement      :: Parser Statement
 
 
 statement_list = [for_statement,input_statement,if_statement,let_statement,
-                 print_statement,rem_statement,end_statement,goto_statement]
+                 print_statement,rem_statement,end_statement,goto_statement,
+                 next_statement,nextlist_statement]
 
 statement      = concatParsers statement_list
   
@@ -107,6 +110,19 @@ for_statement = do
   token p_to
   toExpr <- token expr
   return (FOR var fromExpr toExpr)
+
+
+-- NEXT I or perhaps NEXT X, Y, Z?
+next_statement = do
+  token p_next
+  var <- token p_var
+  return (NEXT var)
+
+-- NEXT X, Y, Z
+nextlist_statement = do
+  token p_next
+  varlist <- token var_expr_list
+  return (NEXTLIST varlist)
 
 -- LET X = Y
 let_statement = do

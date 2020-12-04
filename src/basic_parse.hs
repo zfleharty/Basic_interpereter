@@ -35,9 +35,9 @@
 
 import Data.Array.IO
 import System.IO
-import Data.Map hiding ((!),assocs)
+import Data.Map hiding ((!),assocs,split)
 import Parselib
-import System.Random
+import System.Random hiding (split)
 import Data.Ix()
 import Data.Array
 import Data.List hiding (lookup)
@@ -51,6 +51,10 @@ import BasicTypes
 import Data.Tuple
 import Prelude hiding (lookup,LT,GT)
 
+
+split d [] = []
+split d cs = x : split d (Prelude.drop 1 y) where (x,y) = span (/= d) cs
+
 tuple_line :: Parser Int
 tuple_line = do {num <- int; return num}
 
@@ -63,13 +67,25 @@ tupled_lines ls = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
                             where tuple = head (parse tuple_line x)
                                     in l_statement | x <- ls]
 
-parse_lines' lines = [let p_line = (lmap,((fst . head) stment))
+parse_lines'' lines = [let p_line = (lmap,((fst . head) stment))
+                            where stment   = parse statement (unparsed ls)
+                                  lmap = (line_num ls,n)
+                      in p_line | (n,ls) <- zip [1..] ((tupled_lines' lines))]
+
+
+create_environment'' content table  = Program table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
+  where (lm,sa) = unzip $ parse_lines'' (content)
+        program = array (1,length sa) [x | x <- zip [1..] sa]
+        list_prog = assocs program
+        f_n = [(i,find_next v list_prog) | (i,(FOR v _ _)) <- list_prog]
+                      
+parse_lines lines = [let p_line = (lmap,((fst . head) stment))
                             where stment   = parse statement (unparsed ls)
                                   lmap = (line_num ls,n)
                       in p_line | (n,ls) <- zip [1..] (sort (tupled_lines lines))]
 
 create_environment content table  = Program table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
-  where (lm,sa) = unzip $ parse_lines' (lines content)
+  where (lm,sa) = unzip $ parse_lines (lines content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
         list_prog = assocs program
         f_n = [(i,find_next v list_prog) | (i,(FOR v _ _)) <- list_prog]
@@ -81,13 +97,13 @@ create_environment content table  = Program table program (fromList lm) (fromLis
 --                  (new line #, Statement) where the new line #s now
 --                  run consecutively 1, 2, 3, etc.
 --parse_lines :: (Num a, Enum a) => [Line_statement] -> [(a, Statement)]
-parse_lines lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stment)
+parse_lines' lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stment)
                                where stment = parse statement (unparsed ls)
                                in p_line | (n,ls) <- zip [1..] (sort lines)]
 
 
 create_program_array content = (sorted_lines,array bound [(ix ls, ls) | ls <- sorted_lines])
-                               where sorted_lines = parse_lines $ tupled_lines (lines content)
+                               where sorted_lines = parse_lines' $ tupled_lines (lines content)
                                      bound = (1, length sorted_lines)
 
 find_next _ [] = 0
@@ -291,7 +307,7 @@ test_interp file = do
   content <- hGetContents handle
   symbol_table <-
      newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = create_environment content symbol_table
+  let env = create_environment'' content symbol_table
   putStrLn $ show env
   (runReaderT (interpreter 1)) env
 
@@ -348,7 +364,7 @@ test_statement_input    = INPUT "" test_var_y
 test_statement_let      = LET test_var_x test_number_5
 test_statement_next     = NEXT test_var_x
 test_statement_nextlist = NEXTLIST [test_var_x, test_var_y, test_var_z]
-
+multi_line_statement = "FOR T = 1 TO (N - R): PRINT \" \",: NEXT T"
 
 test_program         = "10 LET A = 2\n20 LET B = 3\n30 LET C = 4\n" ++
                        "40 PRINT A * (B + C)\n50 END"
@@ -364,3 +380,20 @@ test_program_list_02 = ["30 LET C = 4",
                         "10 LET A = 2",
                         "40 PRINT A * (B + C)",
                         "50 END"]
+test_pascal = "10 REM PASCAL'S TRIANGLE\n15 DIM V(100)\n20 INPUT \"NUMBER OF ROWS\"; N\n25 FOR T = 1 TO N: PRINT \" \",: NEXT T\n30 PRINT 1: PRINT\n35 LET V(1) = 1\n40 FOR R = 2 TO N\n45 PRINT: PRINT\n50 FOR T = 1 TO (N - R): PRINT \" \",: NEXT T\n55 PRINT \" \",\n60 FOR I = R TO 1 STEP -1\n65 LET V(I) = V(I) + V(I-1)\n70 PRINT V(I), \" \",\n75 NEXT I\n80 PRINT\n85 NEXT R\n90 END\n"
+
+showProgram f string = sequence $ putStrLn <$> (f string)
+
+
+renumber l = case parse tuple_line l of
+               [] -> [(0,newLine)]
+               tup -> tup
+               where newLine = (snd.head) (parse space l)
+
+
+
+restructure s = concat $ (split ':') <$> (lines s)
+
+tupled_lines' ls = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
+                            where tuple = head (renumber x)
+                                    in l_statement | x <- restructure ls]

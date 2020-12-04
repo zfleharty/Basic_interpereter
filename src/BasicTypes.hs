@@ -8,6 +8,7 @@ import Data.Map hiding ((!),assocs)
 import Prelude hiding (LT, GT)
 {-# LANGUAGE MultiParamTypeClasses #-}
 data Statement      = FOR Expression Expression Expression
+                    | Statements [Statement] [Statement]
                     | FORSTEP Expression Expression Expression Expression
                     | IF Expression Expression
                     | INPUT String Expression
