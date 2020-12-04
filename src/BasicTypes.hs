@@ -16,9 +16,11 @@ data Statement      = FOR Expression Expression Expression
                     | NEXT Expression
                     | NEXTLIST [Expression]
                     | GOTO Int
+                    | GOSUB Int
                     | PRINT [Expression]
                     | REM String
                     | END
+                    | RETURN
 
 
 data Expression     = AddExpr Expression Expression
@@ -118,7 +120,9 @@ instance Show Statement where
   show (PRINT e)         = "PRINT " ++ (show e)
   show (REM s)           = "REM "   ++ (show (NoQuotes s))
   show (GOTO n)          = "GOTO " ++ show n
+  show (GOSUB n)         = "GOSUB" ++ show n
   show (END)             = "END"
+  show (RETURN)          = "RETURN"
 
 showCdr :: [Expression] -> String
 showCdr [] = ""

@@ -19,35 +19,39 @@ right   = char (')')
 --  Parsers for special key strings            --
 -- =========================================== --
 
-p_end   :: Parser String
-p_goto  :: Parser String
-p_for   :: Parser String
-p_if    :: Parser String
-p_input :: Parser String
-p_let   :: Parser String
-p_next  :: Parser String
-p_print :: Parser String
-p_to    :: Parser String
-p_int   :: Parser String
-p_rem   :: Parser String
-p_rnd   :: Parser String
-space1  :: Parser String
-p_then  :: Parser String
+p_end    :: Parser String
+p_goto   :: Parser String
+p_for    :: Parser String
+p_if     :: Parser String
+p_input  :: Parser String
+p_let    :: Parser String
+p_next   :: Parser String
+p_print  :: Parser String
+p_to     :: Parser String
+p_int    :: Parser String
+p_rem    :: Parser String
+p_rnd    :: Parser String
+space1   :: Parser String
+p_then   :: Parser String
+p_gosub  :: Parser String
+p_return :: Parser String
 
-p_end   = string "END"
-p_goto  = string "GOTO"
-p_for   = string "FOR"
-p_if    = string "IF"
-p_input = string "INPUT"
-p_let   = string "LET"
-p_next  = string "NEXT"
-p_print = string "PRINT"
-p_then  = string "THEN"
-p_to    = string "TO"
-p_int   = string "INT"
-p_rem   = string "REM"
-p_rnd   = string "RND"
-space1  = many1 (sat isSpace)
+p_end    = string "END"
+p_goto   = string "GOTO"
+p_for    = string "FOR"
+p_if     = string "IF"
+p_input  = string "INPUT"
+p_let    = string "LET"
+p_next   = string "NEXT"
+p_print  = string "PRINT"
+p_then   = string "THEN"
+p_to     = string "TO"
+p_int    = string "INT"
+p_rem    = string "REM"
+p_rnd    = string "RND"
+p_gosub  = string "GOSUB"
+p_return = string "RETURN"
+space1   = many1 (sat isSpace)
 
 
 -- =========================================== --
@@ -68,7 +72,7 @@ rem_statement      :: Parser Statement
 
 statement_list = [for_statement,input_statement,if_statement,let_statement,
                  print_statement,rem_statement,end_statement,goto_statement,
-                 next_statement,nextlist_statement]
+                 next_statement,nextlist_statement,gosub_statement,return_statement]
 
 statement      = concatParsers statement_list
   
@@ -91,6 +95,15 @@ goto_statement = do
   token p_goto
   line <- nat
   return (GOTO line)
+
+return_statement = do
+  p_return
+  return RETURN
+
+gosub_statement = do
+  token p_gosub
+  line <- nat
+  return (GOSUB line)
 
 
 -- INPUT X

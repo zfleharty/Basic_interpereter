@@ -254,18 +254,23 @@ interpreter n = do
         else interpreter ( n + 1)
 
 
-    IF compExp e -> do
---      liftIO . putStrLn $ show e ++ " " ++ show compExp
-      
+    IF compExp e -> do      
       bool <- eval_comp_expr env compExp
-  --    liftIO . putStrLn $ show bool
       org_line <- liftIO $ eval_expr env e
       let next_line = case (lookup (round org_line) lines) of
             Nothing -> n
             Just l -> l
       if bool then interpreter next_line else interpreter (n + 1)
 
+    GOSUB i -> do
+      let l = case (lookup i lines) of
+            Nothing -> l
+            Just a -> a
+      interpreter l
+      interpreter (n+1)
 
+    RETURN -> do liftIO $ return ()
+    
     GOTO i -> do
       let l = case (lookup i lines) of
             Nothing -> l
