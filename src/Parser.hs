@@ -150,7 +150,7 @@ let_statement = do
   return (LET var assigned)
 
 -- PRINT X
-print_statement = do {token p_print; e <- print_list; return (PRINT e)}
+print_statement = do {token p_print; e <- print_list; return (PRINT e)} +++ do {token p_print; return (PRINT [])}
 
 print_list = expr_colon_tab +++ expr_colon +++ expr_comma +++ single_expr 
 
