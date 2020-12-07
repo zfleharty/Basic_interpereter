@@ -245,7 +245,7 @@ test_interp file = do
   symbol_table <-
      newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
   let env = create_environment content symbol_table
-  putStrLn $ show env
+  -- putStrLn $ show env
   (runReaderT (interpreter 1)) env
 
 

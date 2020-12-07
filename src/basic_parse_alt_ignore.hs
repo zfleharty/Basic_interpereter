@@ -539,9 +539,10 @@ test_04 = do
   writeArray arr 'B' 1 
   -- b <- readArray arr 1
   b <- readArray arr 'B'
-  
   print (a,b)
   -- putStrLn $ show arr
+  y <- (getAssocs arr)
+  print y
 
 test_05 =  do
   putStrLn ""
@@ -630,6 +631,7 @@ ioarr2 = newArray ('A','Z') (NumConst 0) :: IO (IOArray Char Constant)
 -- then readArray x 3 to get 3rd item,
 -- or getElems x to print the list of items, producing m [[Char]]
 -- instead can do ioarr >>= getElems, which produces IO [[Char]]
+-- for all assocs can use y <- ioarr2 then getAssocs y
 
 -- ====================================== --
 --  A Reminder of (some) of the Grammar   --
