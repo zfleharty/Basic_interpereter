@@ -316,6 +316,32 @@ test_interp file = do
   putStrLn $ show env
   (runReaderT (interpreter 1)) env
 
+test_interp' file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  symbol_table <-
+     newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = create_environment'' content symbol_table
+  (runReaderT (interpreter 1)) env
+
+{- 
+   As of Sun 12/6/2020, using the test_interp or test_interp' function,
+   the following program files execute just fine:
+
+     foo.bas
+     test.bas
+     guess.bas
+     fib.bas
+     gcd.bas
+     root.bas
+
+   Still not quite working:
+
+     sieve.bas
+     pascal.bas
+     bubblesort.bas
+     amazing.bas
+-}
 
 test_parser file = do
   handle <- openFile file ReadMode
