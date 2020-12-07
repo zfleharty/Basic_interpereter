@@ -22,7 +22,8 @@ combinators that were not discussed in the article for reasons of space:
 module Parselib
    (Parser, item, sat, (+++), string, many, many1, sepby, sepby1,
     chainl, chainl1, char, digit, lower, upper, letter, alphanum,
-    symb, ident, nat, int, token, apply, parse, space, integer, natural) where
+    symb, ident, nat, int, token, apply, parse, space, integer, natural, mplus,
+    todelim, concatParsers) where
 
 import Data.Char
 import Control.Monad
@@ -104,6 +105,13 @@ p `chainl1` op   = do {a <- p; rest a}
                    where
                       rest a = do {f <- op; b <- p; rest (f a b)}
                                +++ return a
+
+--"given a character will forcefully consume characters until it reaches the character " 
+todelim c = many (sat (/= c))
+
+
+concatParsers ps = Prelude.foldr (+++) (head ps) (tail ps)
+
 
 -- Useful parsers: ---------------------------------------------------
 
