@@ -48,6 +48,7 @@ p_then   = string "THEN"
 p_to     = string "TO"
 p_int    = string "INT"
 p_rem    = string "REM"
+p_tab    = string "TAB"
 p_rnd    = string "RND"
 p_gosub  = string "GOSUB"
 p_return = string "RETURN"
@@ -148,7 +149,7 @@ let_statement = do
 -- PRINT X
 print_statement = do {token p_print; e <- print_list; return (PRINT e)}
 
-print_list = expr_colon +++ expr_comma +++ single_expr 
+print_list = expr_colon_tab +++ expr_colon +++ expr_comma +++ single_expr 
 
 single_expr = do
   e <- expr
@@ -166,7 +167,17 @@ expr_comma = do
   es <- print_list
   return $ (StringComma e):es
   
-  
+-- Tried to add a TAB-related parser at the expr level
+-- (see tab_print_expr) further down, but it refused to cooperate and
+-- "catch" the "TAB" string, so added an explicit parser here to catch
+-- the "TAB(#);" scenrio and add it to print_list above.
+expr_colon_tab = do
+  token (string "TAB(")
+  n <- token nat
+  token (string ");")
+  let s = replicate (n-1) ' '
+  es <- print_list
+  return $ (StringColon (String' s)):es
 
 -- REM This is a comment
 rem_statement = do
@@ -249,7 +260,8 @@ var_expr_list_last = do
 -- add to this list definition to mappend it as part of the full expression type  --
 -- parser                                                                         --
 ------------------------------------------------------------------------------------
-expr_list = [comp_expr,add_expr,mult_expr,add_expr_paren,rnd_fxn_expr,int_fxn_expr,str_expr]
+expr_list = [tab_print_expr, comp_expr, add_expr, mult_expr, add_expr_paren,
+             rnd_fxn_expr, int_fxn_expr, str_expr]
 
 expr = concatParsers expr_list
 
@@ -274,10 +286,15 @@ str_expr = do
   string "\""
   return (String' s)
 
+-- the tab_print_expr doesn't get "caught" somehow, still
+-- allowing the "T" from the "TAB" to get peeled off first.
+-- Added a expr_colon_tab parser higher up in the chain close to the
+-- print_statement parser which (for now) avoids the extra expr level
 tab_print_expr = do
-  string "TAB("
+  token p_tab
+  token (char '(');
   n <- nat
-  string ");"
+  token (char ')')
   let s = replicate (n - 1) ' '
   return (String' s)
   
