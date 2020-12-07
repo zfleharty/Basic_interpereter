@@ -149,6 +149,22 @@ let_statement = do
   assigned <- token expr
   return (LET var assigned)
 
+--------------------------------------------------------------
+-- Need to create parsers to mimic this subset of grammar   --
+-- ID             = {letter}                                --
+-- DIM <Array List>                                         --
+-- <Array List>      ::= <Array> ',' <Array List>           --
+--                     | <Array>                            --
+-- <Array>       ::= ID '(' <Expression List> ')'           --
+-- <Expression List> ::= <Expression> ',' <Expression List> --
+--                     | <Expression>                       --
+--------------------------------------------------------------
+         
+
+
+
+
+
 -- PRINT X
 print_statement = do {token p_print; e <- print_list; return (PRINT e)} +++ do {token p_print; return (PRINT [])}
 
