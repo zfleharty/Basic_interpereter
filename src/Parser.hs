@@ -273,6 +273,13 @@ str_expr = do
   s <- token $ todelim '\"'
   string "\""
   return (String' s)
+
+tab_print_expr = do
+  string "TAB("
+  n <- nat
+  string ");"
+  let s = replicate (n - 1) ' '
+  return (String' s)
   
 add_expr  = do {
   x <- token mult_expr;
