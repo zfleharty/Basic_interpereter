@@ -35,6 +35,8 @@ space1   :: Parser String
 p_then   :: Parser String
 p_gosub  :: Parser String
 p_return :: Parser String
+p_tab    :: Parser String
+parensed :: Parser a -> Parser a 
 
 p_end    = string "END"
 p_goto   = string "GOTO"
@@ -52,8 +54,9 @@ p_tab    = string "TAB"
 p_rnd    = string "RND"
 p_gosub  = string "GOSUB"
 p_return = string "RETURN"
-space1   = many1 (sat isSpace)
 
+space1   = many1 (sat isSpace)
+parensed p = do {token $ char '('; e <- p; token $ char ')'; return e}
 
 -- =========================================== --
 --  Parsers for particular Statements          --
@@ -292,9 +295,10 @@ str_expr = do
 -- print_statement parser which (for now) avoids the extra expr level
 tab_print_expr = do
   token p_tab
-  token (char '(');
-  n <- nat
-  token (char ')')
+  n <- parensed nat
+  -- token (char '(');
+  -- n <- nat
+  -- token (char ')')
   let s = replicate (n - 1) ' '
   return (String' s)
   
@@ -327,9 +331,7 @@ mult_expr = do {
 -- of the fxn name to following parenthesis
 int_fxn_expr = do {
   token p_int;
-  token (char '(');
-  e <- token expr;
-  token (char ')');
+  e <- parensed expr;
   return (FxnExpr "INT" e)
 }
 
@@ -338,23 +340,11 @@ int_fxn_expr = do {
 -- of the fxn name to following parenthesis
 rnd_fxn_expr = do {
   token p_rnd;
-  token (char '(');
-  e <- token expr;
-  token (char ')');
+  e <- parensed expr;
   return (FxnExpr "RND" e)
 }
 
--- The arbitrary number of parens being consumed on either side
--- is problematic here for some situations, such as INT(2 * (3+4)).
--- See alternative further below.
--- value    = do{
---   many1 (char '(');
---   e <- expr;
---   many1 (char ')');
---   return e} +++  (num_expr) +++ (var_expr)
 
-value    = do{
-  char '(';
-  e <- expr;
-  char ')';
-  return e } +++  rnd_fxn_expr +++ int_fxn_expr +++ (num_expr) +++ (var_expr)
+value    = (parensed expr) +++  rnd_fxn_expr +++ int_fxn_expr +++ (num_expr) +++ (var_expr)
+
+
