@@ -411,6 +411,8 @@ test_program_list_02 = ["30 LET C = 4",
                         "10 LET A = 2",
                         "40 PRINT A * (B + C)",
                         "50 END"]
+test_program_print_1   = "PRINT \"Hello!\""
+test_program_print_2   = "PRINT TAB(10); \"Hello!\""
 test_pascal = "10 REM PASCAL'S TRIANGLE\n15 DIM V(100)\n20 INPUT \"NUMBER OF ROWS\"; N\n25 FOR T = 1 TO N: PRINT \" \",: NEXT T\n30 PRINT 1: PRINT\n35 LET V(1) = 1\n40 FOR R = 2 TO N\n45 PRINT: PRINT\n50 FOR T = 1 TO (N - R): PRINT \" \",: NEXT T\n55 PRINT \" \",\n60 FOR I = R TO 1 STEP -1\n65 LET V(I) = V(I) + V(I-1)\n70 PRINT V(I), \" \",\n75 NEXT I\n80 PRINT\n85 NEXT R\n90 END\n"
 
 showProgram f string = sequence $ putStrLn <$> (f string)
