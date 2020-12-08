@@ -337,10 +337,19 @@ test_interp' file = do
 
    Still not quite working:
 
-     sieve.bas
-     pascal.bas
-     bubblesort.bas
-     amazing.bas
+     sieve.bas:
+         (1) Need a single 1-D array to hold integer values
+     pascal.bas:
+         (1) Need a single 1-D array to hold integer values
+     bubblesort.bas:
+         (1) Need a single 1-D array to hold integer values
+     amazing.bas:
+         (1) Need a dual-input INPUT statement, suggesting we
+             generalize the INPUT statement from
+             INPUT String Expression to INPUT String [Expression]
+             or even INPUT String [Var]
+         (2) Need multiple 2-D arrays (the arrays would hold integers)
+
 -}
 
 test_parser file = do
