@@ -224,6 +224,15 @@ interpreter n = do
       liftIO $ writeArray tab c (ConstExpr inp)
       interpreter (n+1)
 
+    -- a temp klunky way to accommodate a 2-input statement
+    -- ugly, I know
+    INPUTMULTI (string) [Var c1, Var c2] -> do
+      (liftIO . putStr) string
+      inp1 <- liftIO $ readLn
+      inp2 <- liftIO $ readLn
+      liftIO $ writeArray tab c1 (ConstExpr inp1)
+      liftIO $ writeArray tab c2 (ConstExpr inp2)
+      interpreter (n+1)
 
     FOR (Var c) e1 e2 -> do
       start <- liftIO $ (eval_expr env) e1
@@ -422,6 +431,7 @@ test_program_list_02 = ["30 LET C = 4",
                         "50 END"]
 test_program_print_1   = "PRINT \"Hello!\""
 test_program_print_2   = "PRINT TAB(10); \"Hello!\""
+test_program_input_2   = "INPUT \"Enter Inputs\"; X, Y"
 test_pascal = "10 REM PASCAL'S TRIANGLE\n15 DIM V(100)\n20 INPUT \"NUMBER OF ROWS\"; N\n25 FOR T = 1 TO N: PRINT \" \",: NEXT T\n30 PRINT 1: PRINT\n35 LET V(1) = 1\n40 FOR R = 2 TO N\n45 PRINT: PRINT\n50 FOR T = 1 TO (N - R): PRINT \" \",: NEXT T\n55 PRINT \" \",\n60 FOR I = R TO 1 STEP -1\n65 LET V(I) = V(I) + V(I-1)\n70 PRINT V(I), \" \",\n75 NEXT I\n80 PRINT\n85 NEXT R\n90 END\n"
 test_amazing = "10 PRINT TAB(28); \"AMAZING PROGRAM\"\n" ++
                "20 PRINT TAB(15);\"CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\"\n" ++
