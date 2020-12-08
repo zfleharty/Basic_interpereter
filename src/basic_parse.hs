@@ -144,13 +144,6 @@ eval_comp_expr' e = do
             "<=" -> (<=)
       return $ v1 `op` v2
 
--- NEED to eval AndExpr and NotExpr, which give Booleans, and thus
--- cannot be dealt with in the eval_expr' below
--- (AndExpr e1 e2) -> do
---            i1 <- liftIO $ r e1
---            i2 <- liftIO $ r e2
---            return $ i1 && i2
-
 eval_expr arr e = (runReaderT $ eval_expr' e) arr
 
 

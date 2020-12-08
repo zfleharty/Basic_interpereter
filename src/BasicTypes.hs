@@ -8,6 +8,7 @@ import Data.Map hiding ((!),assocs)
 import Prelude hiding (LT, GT)
 {-# LANGUAGE MultiParamTypeClasses #-}
 data Statement      = FOR Expression Expression Expression
+                    | DIM Expression
                     | Statements [Statement] [Statement]
                     | FORSTEP Expression Expression Expression Expression
                     | IF Expression Expression
@@ -33,8 +34,10 @@ data Expression     = AddExpr Expression Expression
                     | StringComma Expression 
                     | StringColon Expression 
                     | String' String
-                    | Var Char
-                    | IDList [Expression]
+                    | Var {id'::Char}
+                    | IDList {exp_list::[Expression]}
+                    | ArrayList [Expression]
+                    | OneDArray Char Expression
                     | FxnExpr String Expression
                     | Compare Expression Expression String
                     | NotExpr Expression
@@ -99,6 +102,9 @@ instance Show Expression where
   show (NotExpr e)        = "NOT " ++ show e
   show (AndExpr e1 e2)    = show e1 ++ " AND " ++ show e2
   show (OrExpr e1 e2)     = show e1 ++ "OR" ++ show e2
+  show (IDList es)        = "IDList" ++ show es
+  show (OneDArray c e)    = show (NoQuotesChar c) ++ "(" ++ show e ++ ")"
+  show (ArrayList es)     = show es
 
 instance Eq Line_statement where
   a == b = (line_num a) == (line_num b)
@@ -120,6 +126,7 @@ instance Show Statement where
       " STEP " ++ (show e3)
 
   show (IF e x)          = "IF "    ++ (show e) ++ " THEN " ++ (show x)
+  show (DIM e)           = "DIM " ++ show e
   show (INPUT s x)       = "INPUT " ++ s ++ " " ++ (show x)
   show (INPUTMULTI s [var1, var2]) = "INPUTMULTI " ++ s ++ " " ++ (show var1) ++ " " ++ (show var2)
   show (LET x y)         = "LET "   ++ (show x) ++ " = "    ++ (show y)

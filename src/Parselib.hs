@@ -110,7 +110,7 @@ p `chainl1` op   = do {a <- p; rest a}
 todelim c = many (sat (/= c))
 
 
-concatParsers ps = Prelude.foldr (+++) (head ps) (tail ps)
+concatParsers ps = token $ Prelude.foldr (+++) (head ps) (tail ps)
 
 
 -- Useful parsers: ---------------------------------------------------

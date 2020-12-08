@@ -78,7 +78,7 @@ rem_statement         :: Parser Statement
 
 statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement,
                  print_statement,rem_statement,end_statement,goto_statement,
-                 next_statement,nextlist_statement,gosub_statement,return_statement]
+                 next_statement,nextlist_statement,gosub_statement,return_statement,dim_statement]
 
 statement      = concatParsers statement_list
   
@@ -115,8 +115,8 @@ input_statement = do {
   token p_input;
   s <- todelim ';';
   token (char ';');
-  var <- token p_var;
-  return (INPUT s var)} +++ do {token p_input; var <- token p_var; return (INPUT "" var)}
+  var <- token p_id;
+  return (INPUT s var)} +++ do {token p_input; var <- token p_id; return (INPUT "" var)}
 
 -- INPUT "ENTER INPUT: "; X, Y
 -- klunky effort to accommodate multi-input INPUT statements
@@ -124,15 +124,15 @@ input_multi_statement = do
   token p_input
   s <- todelim ';'
   token (char ';')
-  var1 <- token p_var
+  var1 <- token p_id
   token (char ',')
-  var2 <- token p_var
+  var2 <- token p_id
   return (INPUTMULTI s [var1, var2])
 
 -- FOR I = 1 TO H
 for_statement = do
   token p_for
-  var <- token p_var
+  var <- token p_id
   token equal
   fromExpr <- token expr
   token p_to
@@ -142,7 +142,7 @@ for_statement = do
 -- NEXT I or perhaps NEXT X, Y, Z?
 next_statement = do
   token p_next
-  var <- token p_var
+  var <- token p_id
   return (NEXT var)
 
 -- NEXT X, Y, Z
@@ -154,27 +154,71 @@ nextlist_statement = do
 -- LET X = Y
 let_statement = do
   _ <- token p_let
-  var <- token p_var
+  var <- token p_id
   _ <- token equal
   assigned <- token expr
   return (LET var assigned)
 
 --------------------------------------------------------------
 -- Need to create parsers to mimic this subset of grammar   --
--- ID             = {letter}                                --
--- ID List        = ID , <ID List>
---                | ID
+-- ID             = {letter}                                CHECK--
+-- ID List        = ID , <ID List>                          CHECK
+--                | ID                                      CHECK
 -- DIM <Array List>                                         --
--- <Array List>      ::= <Array> ',' <Array List>           --
---                     | <Array>                            --
--- <Array>       ::= ID '(' <Expression List> ')'           --
--- <Expression List> ::= <Expression> ',' <Expression List> --
---                     | <Expression>                       --
+-- <Array List>      ::= <Array> ',' <Array List>           CKECH--
+--                     | <Array>                            CHECK--
+-- <Array>       ::= ID '(' <Expression List> ')'           CHECK--
+-- <Expression List> ::= <Expression> ',' <Expression List> CHECK--
+--                     | <Expression>                       CHECK--
 --------------------------------------------------------------
          
+concatExpr ls rec = rec <$> ls
 
---id_list = do{i <- token p_var; token $ char ','; ids <- id_list; return $ (IDList (i:ids))}
+id_list = do{
+  i <- token p_id;
+  token $ char ',';
+  ids <- id_list;
+  return $ case ids of
+      (IDList ids') -> (IDList $ i:(ids'))
+      (Var i')      -> (IDList $ i:[(Var i')])
+  } +++ p_id
 
+dim_statement = do {token $ string "DIM"; as <- array_list; return $ DIM as}
+
+-----------------------------------------
+-- list_expression ep cons = do {      --
+--   e <- ep;                          --
+--   token $ char ',';                 --
+--   es <- list_expression ep cons;    --
+--   return $ case es of               --
+--       (cons es') -> (cons $ e:es')  --
+--       e'         -> (cons $ e:[e']) --
+--   } +++ ep                          --
+-----------------------------------------
+  
+
+array_list = do {
+  a <- array';
+  token $ char ',';
+  as <- array_list;
+  return $ case as of
+      (ArrayList as') -> (ArrayList $ a:as')
+      a'              -> (ArrayList $ a:[a'])
+                } +++ array'
+
+array' = do {
+  i <- p_id;
+  es <- parensed expr_list;
+  return $ OneDArray (id' i) es
+           }
+expr_list = do {
+  e <- expr;
+  token $ char ',';
+  es <- expr_list;
+  return $ case es of
+      (ExpressionList es') -> (ExpressionList $ e:es')
+      e'                   -> (ExpressionList $ e:[e'])
+  } +++ expr
 
 
 -- PRINT X
@@ -223,7 +267,7 @@ rem_statement = do
 
 p_const      :: Parser Expression
 p_number     :: Parser Expression
-p_var        :: Parser Expression
+p_id        :: Parser Expression
 var_char     :: Char -> Bool
 var_char_end :: Char -> Bool
 num_expr     :: Parser Expression
@@ -246,7 +290,7 @@ p_const        = p_number
 
 p_number       = do {d <- token int; return (ConstExpr (realToFrac d))}
 
-p_var          = do {var <- token upper; return (Var var)}
+p_id          = do {var <- token upper; return (Var var)}
 
 num_expr       = do {d <- token int; return (ConstExpr (realToFrac d))}
 
@@ -282,10 +326,10 @@ var_expr_list_last = do
 -- add to this list definition to mappend it as part of the full expression type  --
 -- parser                                                                         --
 ------------------------------------------------------------------------------------
-expr_list = [tab_print_expr, and_expr, not_expr, comp_expr, add_expr, mult_expr, 
+expr_list' = [tab_print_expr, and_expr, not_expr, comp_expr, add_expr, mult_expr, 
              rnd_fxn_expr, int_fxn_expr, str_expr]
 
-expr = concatParsers expr_list
+expr = concatParsers expr_list'
 
 
 
@@ -306,13 +350,10 @@ not_expr = do {
   e <- token comp_expr;
   return (NotExpr e)} +++ comp_expr
 
-comp_parse = do
-  o <- token $ concatParsers $ string <$> ["=","<>",">",">=","<","<="]
-  return $ o
 
 comp_expr = do {                  
   e1 <- token add_expr;
-  o <- comp_parse;
+  o <- concatParsers $ string <$> ["=","<>",">",">=","<","<="];
   e2 <- token comp_expr;                  
   return (Compare e1 e2 o)} +++ add_expr
 
@@ -332,7 +373,7 @@ mult_expr = do {
       '*'-> (MultExpr x y)
       '/' -> (DivExpr x y))} +++ value
 
-value    = (parensed expr) +++  function_expr +++ (num_expr) +++ (p_var)
+value    = (parensed expr) +++  function_expr +++ (num_expr) +++ (p_id)
 
 
 
