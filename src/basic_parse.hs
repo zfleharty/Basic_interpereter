@@ -115,11 +115,6 @@ find_next var ((i,s):rest) = case s of
 --------------------- Evaluate Expression types -----------------------
 -----------------------------------------------------------------------
 
-
-
-
-
-
 eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
 
 eval_comp_expr' (Compare e1 e2 op') = do
@@ -135,6 +130,12 @@ eval_comp_expr' (Compare e1 e2 op') = do
         "<=" -> (<=)
   return $ v1 `op` v2
 
+-- NEED to eval AndExpr and NotExpr, which give Booleans, and thus
+-- cannot be dealt with in the eval_expr' below
+-- (AndExpr e1 e2) -> do
+--            i1 <- liftIO $ r e1
+--            i2 <- liftIO $ r e2
+--            return $ i1 && i2
 
 eval_expr arr e = (runReaderT $ eval_expr' e) arr
 
@@ -182,6 +183,7 @@ eval_expr' e = do
              else do
              rand <- liftIO $ randomRIO (0::Float,1::Float)
              return rand
+
          (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
@@ -429,6 +431,7 @@ test_program_list_02 = ["30 LET C = 4",
                         "10 LET A = 2",
                         "40 PRINT A * (B + C)",
                         "50 END"]
+test_program_if_1   = "IF X<>1 AND Y<>1 THEN 100"
 test_program_print_1   = "PRINT \"Hello!\""
 test_program_print_2   = "PRINT TAB(10); \"Hello!\""
 test_program_input_2   = "INPUT \"Enter Inputs\"; X, Y"
@@ -436,7 +439,11 @@ test_pascal = "10 REM PASCAL'S TRIANGLE\n15 DIM V(100)\n20 INPUT \"NUMBER OF ROW
 test_amazing = "10 PRINT TAB(28); \"AMAZING PROGRAM\"\n" ++
                "20 PRINT TAB(15);\"CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\"\n" ++
                "30 PRINT:PRINT:PRINT:PRINT\n" ++
-               "100 INPUT \"WHAT ARE YOUR WIDTH AND LENGTH\";H,V\n"
+               "100 INPUT \"WHAT ARE YOUR WIDTH AND LENGTH\";H,V\n" ++
+               "102 IF H<>1 AND V<>1 THEN 110\n" ++
+               "104 PRINT \"MEANINGLESS DIMENSIONS.  TRY AGAIN.\":GOTO 100\n" ++
+               "110 DIM W(H,V),V(H,V)\n" ++
+               "120 PRINT"
 
 showProgram f string = sequence $ putStrLn <$> (f string)
 
