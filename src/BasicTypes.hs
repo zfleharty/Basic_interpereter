@@ -12,6 +12,7 @@ data Statement      = FOR Expression Expression Expression
                     | FORSTEP Expression Expression Expression Expression
                     | IF Expression Expression
                     | INPUT String Expression
+                    | INPUTMULTI String [Expression]
                     | LET Expression Expression
                     | NEXT Expression
                     | NEXTLIST [Expression]
@@ -114,6 +115,7 @@ instance Show Statement where
 
   show (IF e x)          = "IF "    ++ (show e) ++ " THEN " ++ (show x)
   show (INPUT s x)       = "INPUT " ++ s ++ " " ++ (show x)
+  show (INPUTMULTI s [var1, var2]) = "INPUTMULTI " ++ s ++ " " ++ (show var1) ++ " " ++ (show var2)
   show (LET x y)         = "LET "   ++ (show x) ++ " = "    ++ (show y)
   show (NEXT x)          = "NEXT "  ++ (show x)
   show (NEXTLIST (x:xs)) = "NEXT " ++ (show x) ++ (showCdr xs)
