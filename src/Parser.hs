@@ -224,7 +224,6 @@ p_number     :: Parser Expression
 p_var        :: Parser Expression
 var_char     :: Char -> Bool
 var_char_end :: Char -> Bool
-var_expr     :: Parser Expression
 num_expr     :: Parser Expression
 expr         :: Parser Expression
 add_expr     :: Parser Expression
@@ -250,22 +249,13 @@ p_var          = do {var <- token upper; return (Var var)}
 num_expr       = do {d <- token int; return (ConstExpr (realToFrac d))}
 
 
------------------------------------------------------------------------------------
--- -- instead, make sure an upper case letter is followed by non-alpha char      --
--- -- to ensure we're only dealing with single-letter vars                       --
--- p_var    = do {var <- upper; space1; return (Var var)}                        --
---                                                                               --
--- p_symbol = do {a <- sat (isAlpha); b <- many (sat var_char);                  --
---                c <- many (sat var_char_end); return (StringConst (a:(b++c)))} --
------------------------------------------------------------------------------------
 
-var_expr = do {var <- token upper; return ((Var var))}
+
 -- instead, can we make sure an upper case letter is followed by a
 -- non-alphanumeric character, so we don't end up consuming the
 -- the first letters of functions like INT or RND?
 -- to ensure we're only dealing with single-letter vars
 -- var_expr = do {var <- upper; notAlphanum; return (VarExpr (Var var))}
-
 var_expr_list_cdr = do
   _ <- token (char ',')
   var <- token upper
@@ -290,25 +280,69 @@ var_expr_list_last = do
 -- add to this list definition to mappend it as part of the full expression type  --
 -- parser                                                                         --
 ------------------------------------------------------------------------------------
-expr_list = [tab_print_expr, and_expr, not_expr, comp_expr, add_expr, mult_expr, add_expr_paren,
+expr_list = [tab_print_expr, and_expr, not_expr, comp_expr, add_expr, mult_expr, 
              rnd_fxn_expr, int_fxn_expr, str_expr]
 
 expr = concatParsers expr_list
 
-comp_parsers = string <$> ["=","<>",">",">=","<","<="]
 
-comp_expr = do                          
-  e1 <- token add_expr
-  o <- token $ concatParsers comp_parsers
-  e2 <- token add_expr                  
-  let op = case o of                             
-        "=" -> "="
-        "<>" -> "/="
-        ">" -> ">"
-        ">=" -> ">="
-        "<" -> "<"
-        "<=" -> "<="
-  return (Compare e1 e2 op)                  
+
+expr' = do {
+  e1 <- token and_expr;
+  token $ string "OR";
+  e2 <- token expr';
+  return $ OrExpr e1 e2} +++ and_expr
+
+and_expr = do {
+  e1 <- token not_expr;
+  token (string "AND");
+  e2 <- token and_expr;
+  return (AndExpr e1 e2)} +++ not_expr
+
+not_expr = do {
+  token p_not;
+  e <- token comp_expr;
+  return (NotExpr e)} +++ comp_expr
+
+comp_parse = do
+  o <- token $ concatParsers $ string <$> ["=","<>",">",">=","<","<="]
+  return $ case o of                             
+             "=" -> "="
+             "<>" -> "/="
+             ">" -> ">"
+             ">=" -> ">="
+             "<" -> "<"
+             "<=" -> "<="
+
+comp_expr = do {                  
+  e1 <- token add_expr;
+  o <- comp_parse;
+  e2 <- token comp_expr;                  
+  return (Compare e1 e2 o)} +++ add_expr
+
+add_expr  = do {
+  x <- token mult_expr;
+  op <- token (sat (`elem` "+-"));
+  y <- token add_expr;
+  return (case op of
+            '+' -> AddExpr x y
+            '-' -> SubExpr x y)} +++ mult_expr
+
+mult_expr = do {
+  x <- token value;
+  op <- token (sat (`elem` "/*"));
+  y <- token mult_expr;
+  return (case op of
+      '*'-> (MultExpr x y)
+      '/' -> (DivExpr x y))} +++ value
+
+value    = (parensed expr) +++  function_expr +++ (num_expr) +++ (p_var)
+
+
+
+
+function_expr = rnd_fxn_expr +++ int_fxn_expr
+
 
 str_expr = do
   string "\""
@@ -329,40 +363,6 @@ tab_print_expr = do
   let s = replicate (n - 1) ' '
   return (String' s)
   
-add_expr  = do {
-  x <- token mult_expr;
-  op <- token (sat (`elem` "+-"));
-  y <- token add_expr;
-  return (case op of
-            '+' -> AddExpr x y
-            '-' -> SubExpr x y)} +++ mult_expr
-
-add_expr_paren = do {
-  token (char '(');
-  x <- token mult_expr;
-  token (char '+');
-  y <- token add_expr;
-  token (char ')');
-  return (AddExpr x y)} 
-
-mult_expr = do {
-  x <- token value;
-  op <- token (sat (`elem` "/*"));
-  y <- token mult_expr;
-  return (case op of
-      '*'-> (MultExpr x y)
-      '/' -> (DivExpr x y))} +++ value
-
-not_expr = do {
-  token p_not;
-  e <- token comp_expr;
-  return (NotExpr e)} +++ comp_expr
-
-and_expr = do {
-  e1 <- token not_expr;
-  token (string "AND");
-  e2 <- token and_expr;
-  return (AndExpr e1 e2)} +++ not_expr
 
 -- For the INT() situations
 -- This and the rnd version might benefit from stricter linking
@@ -383,6 +383,6 @@ rnd_fxn_expr = do {
 }
 
 
-value    = (parensed expr) +++  rnd_fxn_expr +++ int_fxn_expr +++ (num_expr) +++ (var_expr)
+
 
 

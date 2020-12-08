@@ -38,6 +38,7 @@ data Expression     = AddExpr Expression Expression
                     | Compare Expression Expression String
                     | NotExpr Expression
                     | AndExpr Expression Expression
+                    | OrExpr Expression Expression
 
 
 data Value          = ParensVal Expression
@@ -95,7 +96,8 @@ instance Show Expression where
   show (FxnExpr s x)      = s ++ "(" ++ (show x) ++ ")"
   show (Compare e1 e2 op) = show e1 ++ " " ++ show op ++ " " ++ show e2
   show (NotExpr e)        = "NOT " ++ show e
-  show (AndExpr e1 e2)        = show e1 ++ " AND " ++ show e2
+  show (AndExpr e1 e2)    = show e1 ++ " AND " ++ show e2
+  show (OrExpr e1 e2)     = show e1 ++ "OR" ++ show e2
 
 instance Eq Line_statement where
   a == b = (line_num a) == (line_num b)
