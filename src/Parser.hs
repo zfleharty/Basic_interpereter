@@ -74,7 +74,7 @@ print_statement    :: Parser Statement
 rem_statement      :: Parser Statement
 
 
-statement_list = [for_statement,input_statement,if_statement,let_statement,
+statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement,
                  print_statement,rem_statement,end_statement,goto_statement,
                  next_statement,nextlist_statement,gosub_statement,return_statement]
 
@@ -117,6 +117,17 @@ input_statement = do {
   token (char ';');
   var <- token p_var;
   return (INPUT s var)} +++ do {token p_input; var <- token p_var; return (INPUT "" var)}
+
+-- INPUT "ENTER INPUT: "; X, Y
+-- klunky effort to accommodate multi-input INPUT statements
+input_multi_statement = do
+  token p_input
+  s <- todelim ';'
+  token (char ';')
+  var1 <- token p_var
+  token (char ',')
+  var2 <- token p_var
+  return (INPUTMULTI s [var1, var2])
 
 -- FOR I = 1 TO H
 for_statement = do
