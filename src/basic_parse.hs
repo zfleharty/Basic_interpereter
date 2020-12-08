@@ -117,18 +117,32 @@ find_next var ((i,s):rest) = case s of
 
 eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
 
-eval_comp_expr' (Compare e1 e2 op') = do
+eval_comp_expr' e = do
   tab <- ask
-  v1 <- liftIO $ (eval_expr tab e1)
-  v2 <- liftIO $ (eval_expr tab e2)
-  let op = case op' of
-        "=" -> (==)
-        "<>" -> (/=)
-        ">" -> (>)
-        ">=" -> (>=)
-        "<" -> (<)
-        "<=" -> (<=)
-  return $ v1 `op` v2
+  case e of
+    (NotExpr e') -> do
+      tf <- eval_comp_expr' e'
+      return $ not tf
+    (AndExpr e1 e2) -> do
+      v1 <- eval_comp_expr' e1
+      v2 <- eval_comp_expr' e2
+      return $ v1 && v2
+    (OrExpr e1 e2) -> do
+      v1 <- eval_comp_expr' e1
+      v2 <- eval_comp_expr' e2
+      return $ v1 || v2
+    (Compare e1 e2 op') -> do
+      v1 <- liftIO $ (eval_expr tab e1)
+      v2 <- liftIO $ (eval_expr tab e2)
+--      liftIO $ putStrLn $ "Could not match case:" ++ op'
+      let op = case op' of
+            "=" -> (==)
+            "<>" -> (/=)
+            ">" -> (>)
+            ">=" -> (>=)
+            "<" -> (<)
+            "<=" -> (<=)
+      return $ v1 `op` v2
 
 -- NEED to eval AndExpr and NotExpr, which give Booleans, and thus
 -- cannot be dealt with in the eval_expr' below

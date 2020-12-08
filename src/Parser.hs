@@ -162,6 +162,8 @@ let_statement = do
 --------------------------------------------------------------
 -- Need to create parsers to mimic this subset of grammar   --
 -- ID             = {letter}                                --
+-- ID List        = ID , <ID List>
+--                | ID
 -- DIM <Array List>                                         --
 -- <Array List>      ::= <Array> ',' <Array List>           --
 --                     | <Array>                            --
@@ -171,7 +173,7 @@ let_statement = do
 --------------------------------------------------------------
          
 
-
+--id_list = do{i <- token p_var; token $ char ','; ids <- id_list; return $ (IDList (i:ids))}
 
 
 
@@ -306,13 +308,7 @@ not_expr = do {
 
 comp_parse = do
   o <- token $ concatParsers $ string <$> ["=","<>",">",">=","<","<="]
-  return $ case o of                             
-             "=" -> "="
-             "<>" -> "/="
-             ">" -> ">"
-             ">=" -> ">="
-             "<" -> "<"
-             "<=" -> "<="
+  return $ o
 
 comp_expr = do {                  
   e1 <- token add_expr;

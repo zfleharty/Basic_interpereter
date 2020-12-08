@@ -33,7 +33,8 @@ data Expression     = AddExpr Expression Expression
                     | StringComma Expression 
                     | StringColon Expression 
                     | String' String
-                    | Var {id:: Char}
+                    | Var Char
+                    | IDList [Expression]
                     | FxnExpr String Expression
                     | Compare Expression Expression String
                     | NotExpr Expression
