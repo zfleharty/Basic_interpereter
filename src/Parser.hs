@@ -90,7 +90,7 @@ end_statement = do {_ <- token p_end; return END}
 -- IF X = Y THEN 200
 if_statement = do
   token p_if
-  boolExpr <- token comp_expr
+  boolExpr <- token and_expr
   token p_then
   c <- token p_const
   return (IF boolExpr c)
