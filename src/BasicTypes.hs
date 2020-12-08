@@ -36,6 +36,8 @@ data Expression     = AddExpr Expression Expression
                     | Var {id:: Char}
                     | FxnExpr String Expression
                     | Compare Expression Expression String
+                    | NotExpr Expression
+                    | AndExpr Expression Expression
 
 
 data Value          = ParensVal Expression
@@ -73,7 +75,6 @@ instance Show Environment where
 
 instance Show Expression where
 
-
   show (MultExpr e1@(AddExpr e11 e12) e2@(AddExpr e21 e22))
     = "(" ++ (show e1) ++ ")" ++ " * " ++ "(" ++ (show e2) ++ ")"
 
@@ -82,17 +83,19 @@ instance Show Expression where
 
   show (MultExpr e1 e2@(AddExpr e21 e22))
     = (show e1) ++ " * " ++ "(" ++ (show e2) ++ ")"
-  show (AddExpr e1 e2)   = (show e1) ++ " + " ++ (show e2)
-  show (SubExpr e1 e2)   = (show e1) ++ " - " ++ (show e2)
-  show (MultExpr e1 e2)  = (show e1) ++ " * " ++ (show e2)
-  show (DivExpr e1 e2)   = (show e1) ++ " / " ++ (show e2)
-  show (ConstExpr x)     = show x
-  show (Var x)           = show (NoQuotesChar x)
-  show (StringColon e)   = show (e)
-  show (StringComma e)   = show (e) ++ "\t"
-  show (String' s)       = s
-  show (FxnExpr s x)     = s ++ "(" ++ (show x) ++ ")"
-  show (Compare e1 e2 op)= show e1 ++ " " ++ show op ++ " " ++ show e2
+  show (AddExpr e1 e2)    = (show e1) ++ " + " ++ (show e2)
+  show (SubExpr e1 e2)    = (show e1) ++ " - " ++ (show e2)
+  show (MultExpr e1 e2)   = (show e1) ++ " * " ++ (show e2)
+  show (DivExpr e1 e2)    = (show e1) ++ " / " ++ (show e2)
+  show (ConstExpr x)      = show x
+  show (Var x)            = show (NoQuotesChar x)
+  show (StringColon e)    = show (e)
+  show (StringComma e)    = show (e) ++ "\t"
+  show (String' s)        = s
+  show (FxnExpr s x)      = s ++ "(" ++ (show x) ++ ")"
+  show (Compare e1 e2 op) = show e1 ++ " " ++ show op ++ " " ++ show e2
+  show (NotExpr e)        = "NOT " ++ show e
+  show (AndExpr e1 e2)        = show e1 ++ " AND " ++ show e2
 
 instance Eq Line_statement where
   a == b = (line_num a) == (line_num b)
