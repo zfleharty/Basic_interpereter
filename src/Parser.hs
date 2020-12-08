@@ -45,6 +45,7 @@ p_if     = string "IF"
 p_input  = string "INPUT"
 p_let    = string "LET"
 p_next   = string "NEXT"
+p_not    = string "NOT"
 p_print  = string "PRINT"
 p_then   = string "THEN"
 p_to     = string "TO"
@@ -61,17 +62,18 @@ parensed p = do {token $ char '('; e <- p; token $ char ')'; return e}
 -- =========================================== --
 --  Parsers for particular Statements          --
 -- =========================================== --
-statement_list     :: [Parser Statement]
-statement          :: Parser Statement
-end_statement      :: Parser Statement
-for_statement      :: Parser Statement
-if_statement       :: Parser Statement
-input_statement    :: Parser Statement
-let_statement      :: Parser Statement
-next_statement     :: Parser Statement
-nextlist_statement :: Parser Statement
-print_statement    :: Parser Statement
-rem_statement      :: Parser Statement
+statement_list        :: [Parser Statement]
+statement             :: Parser Statement
+end_statement         :: Parser Statement
+for_statement         :: Parser Statement
+if_statement          :: Parser Statement
+input_statement       :: Parser Statement
+input_multi_statement :: Parser Statement
+let_statement         :: Parser Statement
+next_statement        :: Parser Statement
+nextlist_statement    :: Parser Statement
+print_statement       :: Parser Statement
+rem_statement         :: Parser Statement
 
 
 statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement,
@@ -93,8 +95,7 @@ if_statement = do
   c <- token p_const
   return (IF boolExpr c)
 
-
-
+-- GOTO 200
 goto_statement = do
   token p_goto
   line <- nat
@@ -108,7 +109,6 @@ gosub_statement = do
   token p_gosub
   line <- nat
   return (GOSUB line)
-
 
 -- INPUT X
 input_statement = do {
@@ -138,7 +138,6 @@ for_statement = do
   token p_to
   toExpr <- token expr
   return (FOR var fromExpr toExpr)
-
 
 -- NEXT I or perhaps NEXT X, Y, Z?
 next_statement = do
@@ -231,6 +230,7 @@ expr         :: Parser Expression
 add_expr     :: Parser Expression
 mult_expr    :: Parser Expression
 int_fxn_expr :: Parser Expression
+and_expr     :: Parser Expression
 value        :: Parser Expression
 notAlphanum  :: Parser Char
 
@@ -290,7 +290,7 @@ var_expr_list_last = do
 -- add to this list definition to mappend it as part of the full expression type  --
 -- parser                                                                         --
 ------------------------------------------------------------------------------------
-expr_list = [tab_print_expr, comp_expr, add_expr, mult_expr, add_expr_paren,
+expr_list = [tab_print_expr, and_expr, not_expr, comp_expr, add_expr, mult_expr, add_expr_paren,
              rnd_fxn_expr, int_fxn_expr, str_expr]
 
 expr = concatParsers expr_list
@@ -352,6 +352,17 @@ mult_expr = do {
   return (case op of
       '*'-> (MultExpr x y)
       '/' -> (DivExpr x y))} +++ value
+
+not_expr = do {
+  token p_not;
+  e <- token comp_expr;
+  return (NotExpr e)} +++ comp_expr
+
+and_expr = do {
+  e1 <- token not_expr;
+  token (string "AND");
+  e2 <- token and_expr;
+  return (AndExpr e1 e2)} +++ not_expr
 
 -- For the INT() situations
 -- This and the rnd version might benefit from stricter linking
