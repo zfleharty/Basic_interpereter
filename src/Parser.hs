@@ -78,7 +78,7 @@ rem_statement         :: Parser Statement
 
 statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement_alt,
                  print_statement,rem_statement,end_statement,goto_statement,
-                 next_statement,nextlist_statement,gosub_statement,return_statement,dim_statement,
+                 nextlist_statement, next_statement,gosub_statement,return_statement,dim_statement,
                  assignment_statement, on_statement]
 
 statement      = concatParsers statement_list
