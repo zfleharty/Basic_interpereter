@@ -38,12 +38,14 @@ data Expression     = AddExpr Expression Expression
                     | Var {id'::Char}
                     | IDList {exp_list::[Expression]}
                     | ArrayList [Expression]
-                    | OneDArray Char Expression
+                    | Array Char Expression
                     | FxnExpr String Expression
                     | Compare Expression Expression String
                     | NotExpr Expression
                     | AndExpr Expression Expression
                     | OrExpr Expression Expression
+                    | OneDArray (IOArray Int Expression)
+                    | TwoDArray (IOArray Int (IOArray Int Expression))
 
 
 data Value          = ParensVal Expression
@@ -60,6 +62,7 @@ data Line_statement = Unparsed_line {line_num:: Int, unparsed:: String}
                                    sttment  :: Statement}
 
 data Environment = Program {s_table        :: IOArray Char Expression,
+                            array_table    :: IOArray Char Expression,
                             basic_program  :: Array Int Statement,
                             line_map       :: Map Int Int,
                             for_next       :: Map Int Int,
@@ -72,9 +75,10 @@ data Environment = Program {s_table        :: IOArray Char Expression,
 
 
 instance Show Environment where
-  show (Program array program mapping fNMap _ ) =
+  show (Program _ _ program mapping fNMap _ ) =
     "Environment{\n" ++
     "Symbol_table: " ++ "NO SHOW INSTANCE FOR IOARRAY YET\n" ++
+    "array_table: " ++ "NO SHOW INSTANCE FOR IOARRAY YET\n" ++
     "Program:      " ++ show program ++ "\n" ++
     "line_map:     " ++ show mapping ++ "\n" ++
     "FOR->Next:    " ++ show fNMap ++ "}"
@@ -104,7 +108,7 @@ instance Show Expression where
   show (AndExpr e1 e2)    = show e1 ++ " AND " ++ show e2
   show (OrExpr e1 e2)     = show e1 ++ "OR" ++ show e2
   show (IDList es)        = "IDList" ++ show es
-  show (OneDArray c e)    = show (NoQuotesChar c) ++ "(" ++ show e ++ ")"
+  show (Array c e)    = show (NoQuotesChar c) ++ "(" ++ show e ++ ")"
   show (ArrayList es)     = show es
   show (ExpressionList es)= show es
   

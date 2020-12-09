@@ -240,7 +240,7 @@ array_list = do {
 variable = do {
   i <- p_id;
   es <- parensed expr_list;
-  return $ OneDArray (id' i) es
+  return $ Array (id' i) es
 } +++ p_id
 
 -- X(A, B)
@@ -248,7 +248,7 @@ variable = do {
 array' = do {
   i <- p_id;                         -- i is something like Var 'X'
   es <- parensed expr_list;         
-  return $ OneDArray (id' i) es      -- id' i returns the 'X' part
+  return $ Array (id' i) es      -- id' i returns the 'X' part
            }
 
 expr_list = do {

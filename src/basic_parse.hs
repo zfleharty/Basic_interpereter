@@ -93,12 +93,12 @@ tuple_line    = do {num <- int; return num}
 -----------------------------------------------------------------------------------
 ------------------ Functions used to create environment ----------------------------
 -----------------------------------------------------------------------------------
-create_environment :: [Char] -> IOArray Char Expression -> Environment
+--create_environment :: [Char] -> IOArray Char Expression -> Environment
 tupled_lines       :: String -> [Line_statement]
 parse_lines        :: (Num a, Enum a) => String -> [((Int, a), Statement)]
 find_next          :: Num p => t -> [(p, Statement)] -> p
 
-create_environment content table  = Program table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
+create_environment content table ar_table = Program table ar_table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
   where (lm,sa) = unzip $ parse_lines (content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
         list_prog = assocs program
@@ -218,7 +218,7 @@ print_expression env e = do
 
 interpreter   :: Int -> ReaderT Environment IO ()
 interpreter n = do
-  env@(Program tab program lines for_next next_for) <- ask
+  env@(Program tab ar_table program lines for_next next_for) <- ask
   let s = program ! n
 
   case s of
@@ -302,9 +302,9 @@ interpreter n = do
             Nothing -> l
             Just a -> a
       interpreter l
-
-    _ -> do
-      liftIO $ putStrLn "could not match"
+    REM _ -> interpreter (n+1)
+    a -> do
+      liftIO $ putStrLn $ "could not match" ++ show a
       interpreter (n+1)
 
 
@@ -335,18 +335,18 @@ main = do
 test_interp file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
-  symbol_table <-
-     newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = create_environment content symbol_table
+  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  ar_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = create_environment content symbol_table ar_table
   putStrLn $ show env
   (runReaderT (interpreter 1)) env
 
 test_interp' file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
-  symbol_table <-
-     newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = create_environment content symbol_table
+  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  ar_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = create_environment content symbol_table ar_table
   (runReaderT (interpreter 1)) env
 
 {- 
@@ -381,7 +381,8 @@ test_parser file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
   table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = create_environment content table
+  ar_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = create_environment content table ar_table
   let sorted_array = basic_program env
   sequence $ (putStrLn.show) <$> sorted_array
 
