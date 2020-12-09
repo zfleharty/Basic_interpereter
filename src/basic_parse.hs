@@ -439,6 +439,7 @@ test_program_list_02 = ["30 LET C = 4",
                         "40 PRINT A * (B + C)",
                         "50 END"]
 test_program_if_1   = "IF X<>1 AND Y<>1 THEN 100"
+test_program_if_2   = "IF A(J) <= A(J+1) THEN 2070"
 test_program_print_1   = "PRINT \"Hello!\""
 test_program_print_2   = "PRINT TAB(10); \"Hello!\""
 test_program_input_2   = "INPUT \"Enter Inputs\"; X, Y"
