@@ -56,15 +56,11 @@ import Prelude hiding (lookup,LT,GT)
 ------------ Helper functions used to split up lines before parsing -----------------------
 -------------------------------------------------------------------------------------------
 tuple_line  :: Parser Int
-split       :: Eq a => a -> [a] -> [[a]]
+split :: Parser [[Char]]
 renumber    :: String -> [(Int, String)]
 restructure :: String -> [[Char]]
 
-split d [] = []
-split d cs = x : split d (Prelude.drop 1 y) where (x,y) = span (/= d) cs
-
-
-split' = dont_split_colon +++ split_colon
+split = dont_split_colon +++ split_colon
 
 split_colon = do
   {
@@ -88,9 +84,8 @@ renumber l = case parse tuple_line l of
                tup -> tup
                where newLine = (snd.head) (parse space l)
 
-restructure' s = fst <$> (concat $ (parse split') <$> (lines s))
+restructure s = concat $ ((fst.head) . (parse split)) <$> (lines s)
 
-restructure s = concat $ (split ':') <$> (lines s)
 
 tuple_line    = do {num <- int; return num}
 
