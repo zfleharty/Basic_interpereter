@@ -101,7 +101,7 @@ instance Show Expression where
   show (Var x)            = show (NoQuotesChar x)
   show (StringColon e)    = show (e)
   show (StringComma e)    = show (e) ++ "\t"
-  show (String' s)        = s
+  show (String' s)        = s 
   show (FxnExpr s x)      = s ++ "(" ++ (show x) ++ ")"
   show (Compare e1 e2 op) = show e1 ++ " " ++ show op ++ " " ++ show e2
   show (NotExpr e)        = "NOT " ++ show e

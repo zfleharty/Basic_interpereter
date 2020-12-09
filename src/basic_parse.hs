@@ -102,7 +102,7 @@ create_environment content table ar_table = Program table ar_table program (from
   where (lm,sa) = unzip $ parse_lines (content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
         list_prog = assocs program
-        f_n = [(i,find_next v list_prog) | (i,(FOR v _ _)) <- list_prog]
+        f_n = [(i,find_next v (Prelude.drop i list_prog)) | (i,(FOR v _ _)) <- list_prog]
         
 tupled_lines ls   = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
                             where tuple = head (renumber x)
@@ -115,9 +115,9 @@ parse_lines lines = [let p_line = (lmap,((fst . head) stment))
 
 
 find_next _ []             = 0
-find_next var ((i,s):rest) = case s of
-                               NEXT var -> i
-                               _ -> find_next var rest
+find_next var' ((i,s):rest) = case s of
+                               NEXT var' -> i
+                               _ -> find_next var' rest
 
 -----------------------------------------------------------------------
 --------------------- Evaluate Expression types -----------------------
@@ -199,22 +199,38 @@ eval_expr' e = do
              rand <- liftIO $ randomRIO (0::Float,1::Float)
              return rand
 
+
+
+
+             
+         Array c e' -> do
+           i <- liftIO $ r e'           
+           (OneDArray arr) <- liftIO $ readArray (array_table env) c
+           (ConstExpr value) <- liftIO $ readArray (arr) (fromIntegral.floor $ i)
+           return value
+
+
+
+
+
+
+           
          (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
 
 
-
 print_expression :: Environment -> Expression -> IO ()
 print_expression env e = do
   case e of
-    e'@(StringColon _) -> putStr $ show e'
-    e'@(StringComma _) -> putStr $ show e'
-    e'@(String' _)     -> putStr $ show e'
+    (StringColon e') -> putStr $ show e'
+    (StringComma e') -> putStr $ show e'
+    (String' e')     -> putStrLn $ show e'
     _ -> do
       e' <- liftIO $ eval_expr env e
       putStr $ show e'
 
+toInt = (fromIntegral.floor)
 
 interpreter   :: Int -> ReaderT Environment IO ()
 interpreter n = do
@@ -227,10 +243,23 @@ interpreter n = do
       liftIO $ writeArray tab i (ConstExpr c)
       interpreter (n+1)
 
-
+    (LET (Array c i) e) -> do
+      value <- liftIO $(eval_expr env) e
+      i' <- liftIO $  (eval_expr env) i
+      (OneDArray arr) <- liftIO $ readArray ar_table c
+      liftIO $ writeArray arr (toInt i') (ConstExpr value)
+      interpreter (n+1)
+    
+    DIM (Array c e) -> do                                                             
+      size <- liftIO $ eval_expr env e                         
+      arr <- liftIO $ (newArray (1,(fromIntegral.floor) size) (ConstExpr 0) :: IO (IOArray Int Expression))
+      liftIO $ writeArray ar_table c (OneDArray arr)                                  
+      interpreter (n+1)                                                               
+    
+      
     (PRINT es) -> do
       liftIO $ sequence $ (print_expression env) <$> es
-      liftIO $ putStrLn ""
+--      liftIO $ putStrLn ""
       interpreter (n+1)
 
     END -> liftIO $ return ()
@@ -303,6 +332,7 @@ interpreter n = do
             Just a -> a
       interpreter l
     REM _ -> interpreter (n+1)
+      
     a -> do
       liftIO $ putStrLn $ "could not match" ++ show a
       interpreter (n+1)
