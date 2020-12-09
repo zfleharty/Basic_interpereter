@@ -23,7 +23,7 @@ data Statement      = FOR Expression Expression Expression
                     | REM String
                     | END
                     | RETURN
-
+                    | ASSIGNMENT Expression Expression
 
 data Expression     = AddExpr Expression Expression
                     | SubExpr Expression Expression
@@ -105,7 +105,8 @@ instance Show Expression where
   show (IDList es)        = "IDList" ++ show es
   show (OneDArray c e)    = show (NoQuotesChar c) ++ "(" ++ show e ++ ")"
   show (ArrayList es)     = show es
-
+  show (ExpressionList es)= show es
+  
 instance Eq Line_statement where
   a == b = (line_num a) == (line_num b)
 
@@ -138,7 +139,7 @@ instance Show Statement where
   show (GOSUB n)         = "GOSUB" ++ show n
   show (END)             = "END"
   show (RETURN)          = "RETURN"
-
+  show (ASSIGNMENT c e)  = show c ++ " = " ++ show e
 showCdr :: [Expression] -> String
 showCdr [] = ""
 showCdr (x:xs) = ", " ++ show x ++ (showCdr xs)

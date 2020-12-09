@@ -78,7 +78,8 @@ rem_statement         :: Parser Statement
 
 statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement_alt,
                  print_statement,rem_statement,end_statement,goto_statement,
-                 next_statement,nextlist_statement,gosub_statement,return_statement,dim_statement]
+                 next_statement,nextlist_statement,gosub_statement,return_statement,dim_statement,
+                 assignment_statement]
 
 statement      = concatParsers statement_list
   
@@ -169,7 +170,12 @@ let_statement_alt = do
   assigned <- token expr
   return (LET var assigned)
 
-
+assignment_statement = do {
+  c <- token $ variable;
+  token $ char '=';
+  e <- token $ expr;
+  return $ ASSIGNMENT c e
+  }
 --------------------------------------------------------------
 -- Need to create parsers to mimic this subset of grammar   --
 -- ID             = {letter}                                CHECK--

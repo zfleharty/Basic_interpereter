@@ -373,8 +373,10 @@ test_interp' file = do
 test_parser file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
-  let sorted_array = create_program_array content
-  putStrLn $ show sorted_array
+  table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = create_environment'' content table
+  let sorted_array = basic_program env
+  sequence $ (putStrLn.show) <$> sorted_array
 
 
 get_test_material file = do
@@ -451,7 +453,11 @@ test_amazing = "10 PRINT TAB(28); \"AMAZING PROGRAM\"\n" ++
                "102 IF H<>1 AND V<>1 THEN 110\n" ++
                "104 PRINT \"MEANINGLESS DIMENSIONS.  TRY AGAIN.\":GOTO 100\n" ++
                "110 DIM W(H,V),V(H,V)\n" ++
-               "120 PRINT"
+               "120 PRINT\n" ++
+               "130 PRINT\n" ++
+               "140 PRINT\n" ++
+               "150 PRINT\n" ++
+               "160 Q=0:Z=0:X=INT(RND(1)*H+1)"
 
 showProgram f string = sequence $ putStrLn <$> (f string)
 
