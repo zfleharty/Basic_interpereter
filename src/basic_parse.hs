@@ -52,61 +52,52 @@ import Data.Tuple
 import Prelude hiding (lookup,LT,GT)
 
 
+-------------------------------------------------------------------------------------------
+------------ Helper functions used to split up lines before parsing -----------------------
+-------------------------------------------------------------------------------------------
+tuple_line  :: Parser Int
+split       :: Eq a => a -> [a] -> [[a]]
+renumber    :: String -> [(Int, String)]
+restructure :: String -> [[Char]]
+
 split d [] = []
 split d cs = x : split d (Prelude.drop 1 y) where (x,y) = span (/= d) cs
 
-tuple_line :: Parser Int
-tuple_line = do {num <- int; return num}
+renumber l = case parse tuple_line l of
+               [] -> [(0,newLine)]
+               tup -> tup
+               where newLine = (snd.head) (parse space l)
+               
+restructure s = concat $ (split ':') <$> (lines s)
 
--- tupled_lines     Processes a list of strings, where each string
---                  represents a line from a BASIC program, producing a
---                  list of tuple-like Unparsed_Line constructions
---                  which print out like (line #, statement)
-tupled_lines :: [String] -> [Line_statement]
-tupled_lines ls = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
-                            where tuple = head (parse tuple_line x)
-                                    in l_statement | x <- ls]
-
-parse_lines'' lines = [let p_line = (lmap,((fst . head) stment))
-                            where stment   = parse statement (unparsed ls)
-                                  lmap = (line_num ls,n)
-                      in p_line | (n,ls) <- zip [1..] ((tupled_lines' lines))]
+tuple_line    = do {num <- int; return num}
 
 
-create_environment'' content table  = Program table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
-  where (lm,sa) = unzip $ parse_lines'' (content)
+-----------------------------------------------------------------------------------
+------------------ Functions used to create environment ----------------------------
+-----------------------------------------------------------------------------------
+create_environment :: [Char] -> IOArray Char Expression -> Environment
+tupled_lines       :: String -> [Line_statement]
+parse_lines        :: (Num a, Enum a) => String -> [((Int, a), Statement)]
+find_next          :: Num p => t -> [(p, Statement)] -> p
+
+create_environment content table  = Program table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
+  where (lm,sa) = unzip $ parse_lines (content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
         list_prog = assocs program
         f_n = [(i,find_next v list_prog) | (i,(FOR v _ _)) <- list_prog]
+        
+tupled_lines ls   = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
+                            where tuple = head (renumber x)
+                                    in l_statement | x <- restructure ls]
 
 parse_lines lines = [let p_line = (lmap,((fst . head) stment))
                             where stment   = parse statement (unparsed ls)
                                   lmap = (line_num ls,n)
-                      in p_line | (n,ls) <- zip [1..] (sort (tupled_lines lines))]
-
-create_environment content table  = Program table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
-  where (lm,sa) = unzip $ parse_lines (lines content)
-        program = array (1,length sa) [x | x <- zip [1..] sa]
-        list_prog = assocs program
-        f_n = [(i,find_next v list_prog) | (i,(FOR v _ _)) <- list_prog]
-
--- parse_lines      Processes a list of Line_Statements, typically
---                  produced by the tupled_lines fxn and which appear
---                  as tuples of the form (line #, Line_statement),
---                  returning a list of tuples of the form
---                  (new line #, Statement) where the new line #s now
---                  run consecutively 1, 2, 3, etc.
---parse_lines :: (Num a, Enum a) => [Line_statement] -> [(a, Statement)]
-parse_lines' lines = [let p_line = Parsed_line n  (line_num ls) ((fst . head) stment)
-                               where stment = parse statement (unparsed ls)
-                               in p_line | (n,ls) <- zip [1..] (sort lines)]
+                      in p_line | (n,ls) <- zip [1..] ((tupled_lines lines))]
 
 
-create_program_array content = (sorted_lines,array bound [(ix ls, ls) | ls <- sorted_lines])
-                               where sorted_lines = parse_lines' $ tupled_lines (lines content)
-                                     bound = (1, length sorted_lines)
-
-find_next _ [] = 0
+find_next _ []             = 0
 find_next var ((i,s):rest) = case s of
                                NEXT var -> i
                                _ -> find_next var rest
@@ -309,13 +300,12 @@ main = do
 
             table <- newArray ('A','Z')
                      (ConstExpr 0) :: IO (IOArray Char Expression)
-            let (Program tab sorted_ar linemap f_n n_f) =
-                    create_environment content table
 
-            putStrLn $ show f_n
-            putStrLn $ show n_f
-            putStrLn $ show linemap
-            putStrLn $ show sorted_ar
+            putStrLn "FINISH LINE"
+            -- putStrLn $ show f_n
+            -- putStrLn $ show n_f
+            -- putStrLn $ show linemap
+            -- putStrLn $ show sorted_ar
     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
 
@@ -330,7 +320,7 @@ test_interp file = do
   content <- hGetContents handle
   symbol_table <-
      newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = create_environment'' content symbol_table
+  let env = create_environment content symbol_table
   putStrLn $ show env
   (runReaderT (interpreter 1)) env
 
@@ -339,7 +329,7 @@ test_interp' file = do
   content <- hGetContents handle
   symbol_table <-
      newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = create_environment'' content symbol_table
+  let env = create_environment content symbol_table
   (runReaderT (interpreter 1)) env
 
 {- 
@@ -374,7 +364,7 @@ test_parser file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
   table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = create_environment'' content table
+  let env = create_environment content table
   let sorted_array = basic_program env
   sequence $ (putStrLn.show) <$> sorted_array
 
@@ -458,19 +448,4 @@ test_amazing = "10 PRINT TAB(28); \"AMAZING PROGRAM\"\n" ++
                "140 PRINT\n" ++
                "150 PRINT\n" ++
                "160 Q=0:Z=0:X=INT(RND(1)*H+1)"
-
 showProgram f string = sequence $ putStrLn <$> (f string)
-
-
-renumber l = case parse tuple_line l of
-               [] -> [(0,newLine)]
-               tup -> tup
-               where newLine = (snd.head) (parse space l)
-
-
-
-restructure s = concat $ (split ':') <$> (lines s)
-
-tupled_lines' ls = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
-                            where tuple = head (renumber x)
-                                    in l_statement | x <- restructure ls]
