@@ -23,6 +23,7 @@ data Statement      = FOR Expression Expression Expression
                     | REM String
                     | END
                     | RETURN
+                    | ON Expression [Int]
                     | ASSIGNMENT Expression Expression
 
 data Expression     = AddExpr Expression Expression
@@ -140,6 +141,7 @@ instance Show Statement where
   show (END)             = "END"
   show (RETURN)          = "RETURN"
   show (ASSIGNMENT c e)  = show c ++ " = " ++ show e
+  show (ON e1 e2)        = "ON " ++ show e1 ++ " GOTO " ++ show e2
 showCdr :: [Expression] -> String
 showCdr [] = ""
 showCdr (x:xs) = ", " ++ show x ++ (showCdr xs)

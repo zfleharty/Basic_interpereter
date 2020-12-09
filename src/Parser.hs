@@ -79,7 +79,7 @@ rem_statement         :: Parser Statement
 statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement_alt,
                  print_statement,rem_statement,end_statement,goto_statement,
                  next_statement,nextlist_statement,gosub_statement,return_statement,dim_statement,
-                 assignment_statement]
+                 assignment_statement, on_statement]
 
 statement      = concatParsers statement_list
   
@@ -176,6 +176,14 @@ assignment_statement = do {
   e <- token $ expr;
   return $ ASSIGNMENT c e
   }
+on_statement = do {
+  token $ string "ON";
+  e <- token expr;
+  token p_goto;
+  ids <- token integer_list;
+  return $ ON e ids
+  }
+
 --------------------------------------------------------------
 -- Need to create parsers to mimic this subset of grammar   --
 -- ID             = {letter}                                CHECK--
@@ -199,6 +207,12 @@ id_list = do{
       (IDList ids') -> (IDList $ i:(ids'))
       (Var i')      -> (IDList $ i:[(Var i')])
   } +++ p_id
+
+integer_list = do {
+  i <- nat;
+  token $ char ',';
+  is <- integer_list;
+  return $ i:is} +++ do{i <- nat; return [i]}
 
 dim_statement = do {token $ string "DIM"; as <- array_list; return $ DIM as}
 

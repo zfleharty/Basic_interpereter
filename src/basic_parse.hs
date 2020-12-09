@@ -63,11 +63,33 @@ restructure :: String -> [[Char]]
 split d [] = []
 split d cs = x : split d (Prelude.drop 1 y) where (x,y) = span (/= d) cs
 
+
+split' = dont_split_colon +++ split_colon
+
+split_colon = do
+  {
+    s0 <- token $ todelim ':';
+    token $ char ':';
+    s1 <- token split_colon;
+    return $ [s0]++s1
+  } +++ do {s <- todelim ':'; return [s]}
+
+dont_split_colon = do
+  {
+    s0 <- token $ todelim_include '\"';
+    s1 <- token $ todelim_include ':';
+    s2 <- token $ todelim_include '\"';
+    return $ [s0 ++ s1 ++ s2]
+  }
+
+
 renumber l = case parse tuple_line l of
                [] -> [(0,newLine)]
                tup -> tup
                where newLine = (snd.head) (parse space l)
-               
+
+restructure' s = fst <$> (concat $ (parse split') <$> (lines s))
+
 restructure s = concat $ (split ':') <$> (lines s)
 
 tuple_line    = do {num <- int; return num}
@@ -447,5 +469,6 @@ test_amazing = "10 PRINT TAB(28); \"AMAZING PROGRAM\"\n" ++
                "130 PRINT\n" ++
                "140 PRINT\n" ++
                "150 PRINT\n" ++
-               "160 Q=0:Z=0:X=INT(RND(1)*H+1)"
+               "160 Q=0:Z=0:X=INT(RND(1)*H+1)\n" ++
+               "180 PRINT \":  \";\n"
 showProgram f string = sequence $ putStrLn <$> (f string)

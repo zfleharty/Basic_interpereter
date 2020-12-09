@@ -23,7 +23,7 @@ module Parselib
    (Parser, item, sat, (+++), string, many, many1, sepby, sepby1,
     chainl, chainl1, char, digit, lower, upper, letter, alphanum,
     symb, ident, nat, int, token, apply, parse, space, integer, natural, mplus,
-    todelim, concatParsers) where
+    todelim, todelim_include, concatParsers) where
 
 import Data.Char
 import Control.Monad
@@ -108,6 +108,7 @@ p `chainl1` op   = do {a <- p; rest a}
 
 --"given a character will forcefully consume characters until it reaches the character " 
 todelim c = many (sat (/= c))
+todelim_include c = do {s <- todelim c; item; return $ (s ++ [c]) }
 
 
 concatParsers ps = token $ Prelude.foldr (+++) (head ps) (tail ps)
