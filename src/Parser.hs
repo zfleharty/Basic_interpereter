@@ -373,7 +373,7 @@ not_expr = do {
 
 comp_expr = do {                  
   e1 <- token add_expr;
-  o <- concatParsers $ string <$> ["=","<>",">",">=","<","<="];
+  o <- concatParsers $ string <$> ["=","<>","<=","<",">=",">"];
   e2 <- token comp_expr;                  
   return (Compare e1 e2 o)} +++ add_expr
 
