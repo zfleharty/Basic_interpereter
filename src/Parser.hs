@@ -393,7 +393,7 @@ mult_expr = do {
       '*'-> (MultExpr x y)
       '/' -> (DivExpr x y))} +++ value
 
-value    = (parensed expr) +++  function_expr +++ (num_expr) +++ (p_id)
+value = (parensed expr) +++  function_expr +++ (num_expr) +++ variable +++ (p_id)
 
 
 
