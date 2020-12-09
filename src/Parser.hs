@@ -76,7 +76,7 @@ print_statement       :: Parser Statement
 rem_statement         :: Parser Statement
 
 
-statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement,
+statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement_alt,
                  print_statement,rem_statement,end_statement,goto_statement,
                  next_statement,nextlist_statement,gosub_statement,return_statement,dim_statement]
 
@@ -159,6 +159,17 @@ let_statement = do
   assigned <- token expr
   return (LET var assigned)
 
+-- ALTERNATIVE let_statement trying to accommodate more general
+-- LET <Variable> = <Expression>
+-- where the <Variable> could be an array specifier
+let_statement_alt = do
+  _ <- token p_let
+  var <- token variable  -- but what to do here?
+  _ <- token equal
+  assigned <- token expr
+  return (LET var assigned)
+
+
 --------------------------------------------------------------
 -- Need to create parsers to mimic this subset of grammar   --
 -- ID             = {letter}                                CHECK--
@@ -196,7 +207,7 @@ dim_statement = do {token $ string "DIM"; as <- array_list; return $ DIM as}
 --   } +++ ep                          --
 -----------------------------------------
   
-
+-- X(A, B), Y(C, D)
 array_list = do {
   a <- array';
   token $ char ',';
@@ -206,11 +217,20 @@ array_list = do {
       a'              -> (ArrayList $ a:[a'])
                 } +++ array'
 
-array' = do {
+variable = do {
   i <- p_id;
   es <- parensed expr_list;
   return $ OneDArray (id' i) es
+} +++ p_id
+
+-- X(A, B)
+-- why array' instead of just array?
+array' = do {
+  i <- p_id;                         -- i is something like Var 'X'
+  es <- parensed expr_list;         
+  return $ OneDArray (id' i) es      -- id' i returns the 'X' part
            }
+
 expr_list = do {
   e <- expr;
   token $ char ',';
