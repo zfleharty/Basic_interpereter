@@ -280,7 +280,6 @@ interpreter n = do
       case es of
         []  -> liftIO $ sequence [putStrLn ""]
         es' -> liftIO $ sequence $ (print_expression env) <$> es'
-
       interpreter (n+1)
 
     END -> liftIO $ return ()
@@ -321,14 +320,16 @@ interpreter n = do
       liftIO $ writeArray tab c (ConstExpr start)
       s' <- liftIO $ (eval_expr env) step
       let conditional = (case s' < 0 of
-                           True -> (<=)
-                           False -> (>=))
+                           True -> (<)
+                           False -> (>))
+
       if start `conditional` finish
         then case (lookup (c,n) for_next) of
                Nothing -> do
                  liftIO $ putStrLn "NextNotFound"
                  interpreter (n + 1)
-               Just (_,l) -> interpreter (l + 1)
+               Just (_,l) -> do
+                 interpreter (l + 1)
         else interpreter (n + 1)
 
 
