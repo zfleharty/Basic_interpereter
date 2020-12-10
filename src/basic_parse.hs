@@ -35,7 +35,7 @@
 
 import Data.Array.IO
 import System.IO
-import Data.Map hiding ((!),assocs,split)
+import Data.Map hiding ((!),assocs,split,take,drop)
 import Parselib
 import System.Random hiding (split)
 import Data.Ix()
@@ -102,7 +102,7 @@ create_environment content table ar_table = Program table ar_table program (from
   where (lm,sa) = unzip $ parse_lines (content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
         list_prog = assocs program
-        f_n = [((id' v,i),find_next v (Prelude.drop i list_prog)) | (i,(FOR v _ _ _)) <- list_prog]
+        f_n = [((id' v,i),find_next v (drop i list_prog)) | (i,(FOR v _ _ _)) <- list_prog]
         
 tupled_lines ls   = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
                             where tuple = head (renumber x)
@@ -288,6 +288,14 @@ interpreter n = do
       (liftIO . putStr) string
       inp <- liftIO $ readLn
       liftIO $ writeArray tab c (ConstExpr inp)
+      interpreter (n + 1)
+
+    INPUT (string) (IDList ids) -> do
+      (liftIO . putStr) string
+      inputs <- liftIO $ (sequence $ take (length ids) (repeat $ readLn))
+
+      let assign = (\(c,inp) -> writeArray tab c (ConstExpr inp))
+      liftIO $ traverse assign $ zip (id' <$> ids) inputs
       interpreter (n+1)
 
     -- a temp klunky way to accommodate a 2-input statement
@@ -299,19 +307,6 @@ interpreter n = do
       liftIO $ writeArray tab c1 (ConstExpr inp1)
       liftIO $ writeArray tab c2 (ConstExpr inp2)
       interpreter (n+1)
-
-    -- FOR (Var c) e1 e2 -> do
-    --   start <- liftIO $ (eval_expr env) e1
-    --   finish <- liftIO $ (eval_expr env) e2
-    --   liftIO $ writeArray tab c (ConstExpr start)
-    --   if start >= finish
-    --     then case (lookup (c,n) for_next) of
-    --            Nothing -> do
-    --              liftIO $ putStrLn "NextNotFound"
-    --              interpreter (n + 1)
-    --            Just (_,l) -> interpreter (l + 1)
-    --     else interpreter (n + 1)
-
 
 
     FOR (Var c) e1 e2 step -> do
