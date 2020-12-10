@@ -34,7 +34,7 @@ data Expression     = AddExpr Expression Expression
                     | Var {id'::Char}
                     | IDList {exp_list::[Expression]}
                     | ArrayList [Expression]
-                    | Array Char Expression
+                    | Array {i::Char, size'::Expression}
                     | FxnExpr String Expression
                     | Compare Expression Expression String
                     | NotExpr Expression

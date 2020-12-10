@@ -281,7 +281,18 @@ interpreter n = do
       liftIO $ writeArray ar_table c (OneDArray arr)                                  
       interpreter (n+1)                                                               
     
-      
+    DIM (ArrayList arrs) -> do
+      let eval' = (\(f,ls) -> liftIO $ sequence $ f <$> ls)
+
+      sizes   <- eval' $ ((eval_expr env),(size' <$> arrs))
+      let indices = i <$> arrs
+
+      let create_array = (\s -> (newArray (0,(fromIntegral.floor) s) (ConstExpr 0) :: IO (IOArray Int Expression)))
+      let write_array = (\(i,a) -> writeArray ar_table i (OneDArray a))
+
+      new_arrs <- eval' $ (create_array,sizes)
+      eval' $ (write_array, (zip indices new_arrs))
+      interpreter (n+1)
 
 
     (PRINT es) -> do
