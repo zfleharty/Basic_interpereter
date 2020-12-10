@@ -246,9 +246,9 @@ for_next_check env (FOR var' _ finish step) = do
   (ConstExpr value) <- liftIO $ readArray (s_table env) (id' var')
   s' <- liftIO $ (eval_expr env) step
   let conditional = (case s' < 0 of
-                       True -> (>)
-                       False -> (<))
-  return $ ((value `conditional` finish'),s')
+                       True -> (>=)
+                       False -> (<=))
+  return $ (((value + s') `conditional` finish'),s')
 
 
 interpreter   :: Int -> ReaderT Environment IO ()
