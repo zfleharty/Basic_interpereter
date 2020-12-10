@@ -219,16 +219,42 @@ eval_expr' e = do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
 
+         -- perhaps a default here to just print a string version
+         -- of whatever else comes up?
+         -- but can only return Floats!
 
+
+
+-- print_expression :: Environment -> Expression -> IO ()
+-- print_expression env e = do
+--   case e of
+--     (StringColon e') -> putStr $ show e'
+--     (StringComma e') -> putStr $ show e'
+--     (String' e')     -> putStrLn $ show e'
+--     _ -> do
+--       e' <- liftIO $ eval_expr env e
+--       putStrLn $ show e'
+
+-- experimenting here by Hoss
 print_expression :: Environment -> Expression -> IO ()
 print_expression env e = do
   case e of
-    (StringColon e') -> putStr $ show e'
-    (StringComma e') -> putStr $ show e'
+    (StringColon e') -> do
+      case e' of
+        String' e'' -> putStr $ show e'
+        _      -> do
+          e'' <- liftIO $ eval_expr env e'
+          putStr $ show e''
+    (StringComma e') -> do
+      case e' of
+        String' e'' -> putStr $ show e'
+        _      -> do
+          e'' <- liftIO $ eval_expr env e'
+          putStr $ show e''
     (String' e')     -> putStrLn $ show e'
     _ -> do
       e' <- liftIO $ eval_expr env e
-      putStr $ show e'
+      putStrLn $ show e'
 
 toInt = (fromIntegral.floor)
 
@@ -307,6 +333,8 @@ interpreter n = do
         liftIO $ writeArray tab c (ConstExpr (value + 1))
         interpreter ( for_line + 1)
         else interpreter ( n + 1)
+
+    -- NEXTLIST 
 
 
     IF compExp e -> do
