@@ -138,7 +138,7 @@ for_statement = do
   fromExpr <- token expr
   token p_to
   toExpr <- token expr
-  return (FOR var fromExpr toExpr)
+  return (FOR var fromExpr toExpr (ConstExpr 1))
 
 for_step_statement = do
   token p_for
@@ -149,7 +149,7 @@ for_step_statement = do
   toExpr <- token expr
   token $ string "STEP"
   step <- token expr
-  return (FORSTEP var fromExpr toExpr step)
+  return (FOR var fromExpr toExpr step)
 
 -- NEXT I or perhaps NEXT X, Y, Z?
 next_statement = do

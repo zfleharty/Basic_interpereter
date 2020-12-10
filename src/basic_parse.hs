@@ -102,7 +102,7 @@ create_environment content table ar_table = Program table ar_table program (from
   where (lm,sa) = unzip $ parse_lines (content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
         list_prog = assocs program
-        f_n = [((id' v,i),find_next v (Prelude.drop i list_prog)) | (i,(FOR v _ _)) <- list_prog]
+        f_n = [((id' v,i),find_next v (Prelude.drop i list_prog)) | (i,(FOR v _ _ _)) <- list_prog]
         
 tupled_lines ls   = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
                             where tuple = head (renumber x)
@@ -241,6 +241,16 @@ print_expression env e = do
 
 toInt = (fromIntegral.floor)
 
+for_next_check env (FOR var' _ finish step) = do
+  finish' <- liftIO $ (eval_expr env) finish
+  (ConstExpr value) <- liftIO $ readArray (s_table env) (id' var')
+  s' <- liftIO $ (eval_expr env) step
+  let conditional = (case s' < 0 of
+                       True -> (>)
+                       False -> (<))
+  return $ ((value `conditional` finish'),s')
+
+
 interpreter   :: Int -> ReaderT Environment IO ()
 interpreter n = do
   env@(Program tab ar_table program lines for_next next_for) <- ask
@@ -261,13 +271,16 @@ interpreter n = do
     
     DIM (Array c e) -> do                                                             
       size <- liftIO $ eval_expr env e                         
-      arr <- liftIO $ (newArray (1,(fromIntegral.floor) size) (ConstExpr 0) :: IO (IOArray Int Expression))
+      arr <- liftIO $ (newArray (0,(fromIntegral.floor) size) (ConstExpr 0) :: IO (IOArray Int Expression))
       liftIO $ writeArray ar_table c (OneDArray arr)                                  
       interpreter (n+1)                                                               
     
       
     (PRINT es) -> do
-      liftIO $ sequence $ (print_expression env) <$> es
+      case es of
+        []  -> liftIO $ sequence [putStrLn ""]
+        es' -> liftIO $ sequence $ (print_expression env) <$> es'
+
       interpreter (n+1)
 
     END -> liftIO $ return ()
@@ -288,21 +301,21 @@ interpreter n = do
       liftIO $ writeArray tab c2 (ConstExpr inp2)
       interpreter (n+1)
 
-    FOR (Var c) e1 e2 -> do
-      start <- liftIO $ (eval_expr env) e1
-      finish <- liftIO $ (eval_expr env) e2
-      liftIO $ writeArray tab c (ConstExpr start)
-      if start >= finish
-        then case (lookup (c,n) for_next) of
-               Nothing -> do
-                 liftIO $ putStrLn "NextNotFound"
-                 interpreter (n + 1)
-               Just (_,l) -> interpreter (l + 1)
-        else interpreter (n + 1)
+    -- FOR (Var c) e1 e2 -> do
+    --   start <- liftIO $ (eval_expr env) e1
+    --   finish <- liftIO $ (eval_expr env) e2
+    --   liftIO $ writeArray tab c (ConstExpr start)
+    --   if start >= finish
+    --     then case (lookup (c,n) for_next) of
+    --            Nothing -> do
+    --              liftIO $ putStrLn "NextNotFound"
+    --              interpreter (n + 1)
+    --            Just (_,l) -> interpreter (l + 1)
+    --     else interpreter (n + 1)
 
 
 
-    FORSTEP (Var c) e1 e2 step -> do
+    FOR (Var c) e1 e2 step -> do
       start <- liftIO $ (eval_expr env) e1
       finish <- liftIO $ (eval_expr env) e2
       liftIO $ writeArray tab c (ConstExpr start)
@@ -325,39 +338,19 @@ interpreter n = do
       let for_line = case (lookup (c,n) next_for) of
             Nothing -> n
             Just (_,l) -> l
---      let (FOR _ _ e) = program ! for_line
+      (bool,s'') <- for_next_check env (program ! for_line)
       (ConstExpr value) <- liftIO $ readArray tab c
-
-      liftIO $ (putStrLn.show) $ program ! for_line
-      case program ! for_line of
-        (FOR _ _ e) -> do                   
-          finish <- liftIO $ (eval_expr env) e
-          if value < finish
-            then do
-            liftIO $ writeArray tab c (ConstExpr (value + 1))
-            interpreter (for_line + 1)
-            else interpreter (n + 1)
-        (FORSTEP _ _ e step) -> do
-          finish <- liftIO $ (eval_expr env) e
-          s'      <- liftIO $ (eval_expr env) step
-
-          let conditional = (case s' < 0 of
-                              True -> (>=)
-                              False -> (<=))
-          if value `conditional` finish
-            then do
-            liftIO $ writeArray tab c (ConstExpr (value + s'))
-            interpreter (for_line + 1)
-            else interpreter (n + 1)
-                 
-      -- if value < finish
-      --   then do
-      --   liftIO $ writeArray tab c (ConstExpr (value + 1))
-      --   interpreter ( for_line + 1)
-      --   else interpreter ( n + 1)
+                        
+      if bool
+        then do
+        liftIO $ writeArray tab c (ConstExpr (value + s''))
+        interpreter (for_line + 1)
+        else interpreter (n + 1)
 
 
 
+
+        
 
     NEXT (IDList ids) -> do
       --NEXT J, I
@@ -366,10 +359,13 @@ interpreter n = do
       let get_line = (\value -> case value of
                                   Nothing -> n
                                   Just (_,l) -> l)
-      let finish_expressions = [ e2 | (FOR _ _ e2) <- (program !) <$> get_line <$> values] --[N - I,N - 1.0]
+      let for_lines = [ l | l <- (program !) <$> get_line <$> values]
+      
+      let finish_expressions = [ e2 | (FOR _ _ e2 st) <- (program !) <$> get_line <$> values] --[N - I,N - 1.0]
       evaled_expressions <- liftIO $ traverse (eval_expr env) finish_expressions --[9.0,9.0]
       evaled_values <- liftIO $ traverse (eval_expr env) ids -- [1.0,1.0]
-
+      
+--      let continue_list <- traverse $ (for_next_check env) <$> for_lines
       let next_interpret = [ (i,l,v) | ((Just (i,l)),f,v) <- zip3 values evaled_expressions evaled_values, v < f]
 
       case next_interpret of

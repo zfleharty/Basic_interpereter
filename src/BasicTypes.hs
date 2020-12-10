@@ -7,7 +7,7 @@ import Data.Array
 import Data.Map hiding ((!),assocs)
 import Prelude hiding (LT, GT)
 {-# LANGUAGE MultiParamTypeClasses #-}
-data Statement      = FOR Expression Expression Expression
+data Statement      = FOR Expression Expression Expression Expression
                     | DIM Expression
                     | Statements [Statement] [Statement]
                     | FORSTEP Expression Expression Expression Expression
@@ -128,8 +128,8 @@ instance Show Line_statement where
     = "(" ++ show o ++ "->" ++ show i ++ ")," ++ show stment
 
 instance Show Statement where
-  show (FOR x e1 e2)
-    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2)
+  show (FOR x e1 e2 e3)
+    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++ "{" ++ show e3++ "}"
   show (FORSTEP x e1 e2 e3)
     = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++
       " STEP " ++ (show e3)
