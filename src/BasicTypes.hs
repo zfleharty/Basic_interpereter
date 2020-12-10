@@ -9,14 +9,10 @@ import Prelude hiding (LT, GT)
 {-# LANGUAGE MultiParamTypeClasses #-}
 data Statement      = FOR Expression Expression Expression Expression
                     | DIM Expression
-                    | Statements [Statement] [Statement]
-                    | FORSTEP Expression Expression Expression Expression
                     | IF Expression Expression
                     | INPUT String Expression
-                    | INPUTMULTI String [Expression]
                     | LET Expression Expression
                     | NEXT Expression
-                    | NEXTLIST [Expression]
                     | GOTO Int
                     | GOSUB Int
                     | PRINT [Expression]
@@ -46,12 +42,6 @@ data Expression     = AddExpr Expression Expression
                     | OrExpr Expression Expression
                     | OneDArray (IOArray Int Expression)
                     | TwoDArray (IOArray Int (IOArray Int Expression))
-
-
-data Value          = ParensVal Expression
-                    | VarVal Expression
-                    | FxnVal Function
-                    | ConstVal Expression
 
 data Function       = INT Expression
                     | RND Expression
@@ -129,18 +119,12 @@ instance Show Line_statement where
 
 instance Show Statement where
   show (FOR x e1 e2 e3)
-    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++ "{" ++ show e3++ "}"
-  show (FORSTEP x e1 e2 e3)
-    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++
-      " STEP " ++ (show e3)
-
+    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++ " {" ++ show e3++ "}"
   show (IF e x)          = "IF "    ++ (show e) ++ " THEN " ++ (show x)
   show (DIM e)           = "DIM " ++ show e
   show (INPUT s x)       = "INPUT " ++ s ++ " " ++ (show x)
-  show (INPUTMULTI s [var1, var2]) = "INPUTMULTI " ++ s ++ " " ++ (show var1) ++ " " ++ (show var2)
   show (LET x y)         = "LET "   ++ (show x) ++ " = "    ++ (show y)
   show (NEXT x)          = "NEXT "  ++ (show x)
-  show (NEXTLIST (x:xs)) = "NEXT " ++ (show x) ++ (showCdr xs)
   show (PRINT e)         = "PRINT " ++ (show e)
   show (REM s)           = "REM "   ++ (show (NoQuotes s))
   show (GOTO n)          = "GOTO " ++ show n
@@ -152,12 +136,6 @@ instance Show Statement where
 showCdr :: [Expression] -> String
 showCdr [] = ""
 showCdr (x:xs) = ", " ++ show x ++ (showCdr xs)
-
-instance Show Value where
-  show (VarVal x)    = show x
-  show (FxnVal x)    = show x
-  show (ConstVal x)  = show x
-  show (ParensVal x) = show x
 
 instance Show Function where
   show (INT e)    = "INT(" ++ (show e) ++ ")"

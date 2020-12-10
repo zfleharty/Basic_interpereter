@@ -68,15 +68,13 @@ end_statement         :: Parser Statement
 for_statement         :: Parser Statement
 if_statement          :: Parser Statement
 input_statement       :: Parser Statement
-input_multi_statement :: Parser Statement
 let_statement         :: Parser Statement
 next_statement        :: Parser Statement
---nextlist_statement    :: Parser Statement
 print_statement       :: Parser Statement
 rem_statement         :: Parser Statement
 
 
-statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement_alt,
+statement_list = [for_statement,input_statement,if_statement,let_statement_alt,
                  print_statement,rem_statement,end_statement,goto_statement,
                  next_statement,gosub_statement,return_statement,dim_statement,
                  assignment_statement, on_statement,for_step_statement]
@@ -119,16 +117,6 @@ input_statement = do {
   ids <- token id_list;
   return (INPUT s ids)} +++ do {token p_input; ids <- token id_list; return (INPUT "" ids)}
 
--- INPUT "ENTER INPUT: "; X, Y
--- klunky effort to accommodate multi-input INPUT statements
-input_multi_statement = do
-  token p_input
-  s <- todelim ';'
-  token (char ';')
-  var1 <- token p_id
-  token (char ',')
-  var2 <- token p_id
-  return (INPUTMULTI s [var1, var2])
 
 -- FOR I = 1 TO H
 for_statement = do
@@ -157,11 +145,6 @@ next_statement = do
   ids <- token id_list
   return (NEXT ids)
 
--- -- NEXT X, Y, Z
--- nextlist_statement = do
---   token p_next
---   varlist <- token var_expr_list
---   return (NEXTLIST varlist)
 
 -- LET X = Y
 let_statement = do
@@ -195,20 +178,27 @@ on_statement = do {
   return $ ON e ids
   }
 
---------------------------------------------------------------
--- Need to create parsers to mimic this subset of grammar   --
--- ID             = {letter}                                CHECK--
--- ID List        = ID , <ID List>                          CHECK
---                | ID                                      CHECK
--- DIM <Array List>                                         --
--- <Array List>      ::= <Array> ',' <Array List>           CKECH--
---                     | <Array>                            CHECK--
--- <Array>       ::= ID '(' <Expression List> ')'           CHECK--
--- <Expression List> ::= <Expression> ',' <Expression List> CHECK--
---                     | <Expression>                       CHECK--
---------------------------------------------------------------
-         
-concatExpr ls rec = rec <$> ls
+dim_statement = do {token $ string "DIM"; as <- array_list; return $ DIM as}
+
+
+
+
+--------------------------------------
+-- Parsers for List type data types --
+--------------------------------------
+
+---Work to try to abstract patter in list parser
+-----------------------------------------
+-- list_expression ep cons = do {      --
+--   e <- ep;                          --
+--   token $ char ',';                 --
+--   es <- list_expression ep cons;    --
+--   return $ case es of               --
+--       (cons es') -> (cons $ e:es')  --
+--       e'         -> (cons $ e:[e']) --
+--   } +++ ep                          --
+-----------------------------------------
+
 
 id_list = do{
   i <- token p_id;
@@ -225,19 +215,6 @@ integer_list = do {
   is <- integer_list;
   return $ i:is} +++ do{i <- nat; return [i]}
 
-dim_statement = do {token $ string "DIM"; as <- array_list; return $ DIM as}
-
------------------------------------------
--- list_expression ep cons = do {      --
---   e <- ep;                          --
---   token $ char ',';                 --
---   es <- list_expression ep cons;    --
---   return $ case es of               --
---       (cons es') -> (cons $ e:es')  --
---       e'         -> (cons $ e:[e']) --
---   } +++ ep                          --
------------------------------------------
-  
 -- X(A, B), Y(C, D)
 array_list = do {
   a <- array';
@@ -271,9 +248,29 @@ expr_list = do {
       e'                   -> (ExpressionList $ e:[e'])
   } +++ expr
 
+-- REM This is a comment
+rem_statement = do
+  token p_rem
+  comment <- token (many item)
+  return (REM comment)
 
 -- PRINT X
 print_statement = do {token p_print; e <- print_list; return (PRINT e)} +++ do {token p_print; return (PRINT [])}
+
+
+
+
+
+--------------------------------------
+-- Parsers for PrintList data types --
+--------------------------------------
+print_list     :: Parser [Expression]
+single_expr    :: Parser [Expression]
+expr_colon     :: Parser [Expression]
+expr_comma     :: Parser [Expression]
+expr_colon_tab :: Parser [Expression]
+
+
 
 print_list = expr_colon_tab +++ expr_colon +++ expr_comma +++ single_expr 
 
@@ -305,71 +302,43 @@ expr_colon_tab = do
   es <- print_list
   return $ (StringColon (String' s)):es
 
--- REM This is a comment
-rem_statement = do
-  token p_rem
-  comment <- token (many item)
-  return (REM comment)
 
 -- =========================================== --
 --  Parsers (and supporting fxns) for          --
 --  Statement components                       --
 -- =========================================== --
 
-p_const      :: Parser Expression
-p_number     :: Parser Expression
-p_id        :: Parser Expression
-var_char     :: Char -> Bool
-var_char_end :: Char -> Bool
-num_expr     :: Parser Expression
-expr         :: Parser Expression
-add_expr     :: Parser Expression
-mult_expr    :: Parser Expression
-int_fxn_expr :: Parser Expression
-and_expr     :: Parser Expression
-value        :: Parser Expression
-notAlphanum  :: Parser Char
-
+p_const        :: Parser Expression
+p_number       :: Parser Expression
+p_id           :: Parser Expression
+var_char       :: Char -> Bool
+var_char_end   :: Char -> Bool
+num_expr       :: Parser Expression
+expr           :: Parser Expression
+add_expr       :: Parser Expression
+mult_expr      :: Parser Expression
+int_fxn_expr   :: Parser Expression
+and_expr       :: Parser Expression
+value          :: Parser Expression
+notAlphanum    :: Parser Char
+expr_list'     :: [Parser Expression]
+expr'          :: Parser Expression
+not_expr       :: Parser Expression
+comp_expr      :: Parser Expression
+function_expr  :: Parser Expression
+str_expr       :: Parser Expression
+tab_print_expr :: Parser Expression  
+rnd_fxn_expr   :: Parser Expression
 
 var_char x     = isAlphaNum x || elem x "_"
-
 var_char_end x = elem x "$%"
-
 notAlphanum    = sat (not.isAlphaNum)
-
 p_const        = p_number 
-
 p_number       = do {d <- token int; return (ConstExpr (realToFrac d))}
-
 p_id          = do {var <- token upper; return (Var var)}
-
 num_expr       = do {d <- token int; return (ConstExpr (realToFrac d))}
 
 
-
-
--- instead, can we make sure an upper case letter is followed by a
--- non-alphanumeric character, so we don't end up consuming the
--- the first letters of functions like INT or RND?
--- to ensure we're only dealing with single-letter vars
--- var_expr = do {var <- upper; notAlphanum; return (VarExpr (Var var))}
-var_expr_list_cdr = do
-  _ <- token (char ',')
-  var <- token upper
-  return [Var var]
-
-
-var_expr_list :: Parser [Expression]
-var_expr_list = do
-  var <- token upper
-  comma <- token (char ',')
-  varlisttail <- var_expr_list +++ var_expr_list_last
-  return ((Var var):varlisttail)
-
-var_expr_list_last :: Parser [Expression]
-var_expr_list_last = do
-  var <- token upper
-  return [Var var]
 
 
 ------------------------------------------------------------------------------------
@@ -427,8 +396,6 @@ mult_expr = do {
 value = (parensed expr) +++  function_expr +++ (num_expr) +++ variable +++ (p_id)
 
 
-
-
 function_expr = rnd_fxn_expr +++ int_fxn_expr
 
 
@@ -450,7 +417,6 @@ tab_print_expr = do
   -- token (char ')')
   let s = replicate (n - 1) ' '
   return (String' s)
-  
 
 -- For the INT() situations
 -- This and the rnd version might benefit from stricter linking

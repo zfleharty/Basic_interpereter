@@ -262,6 +262,9 @@ interpreter n = do
       liftIO $ writeArray tab i (ConstExpr c)
       interpreter (n+1)
 
+
+
+
     (LET (Array c i) e) -> do
       value <- liftIO $(eval_expr env) e
       i' <- liftIO $  (eval_expr env) i
@@ -269,6 +272,9 @@ interpreter n = do
       liftIO $ writeArray arr (toInt i') (ConstExpr value)
       interpreter (n+1)
     
+
+
+
     DIM (Array c e) -> do                                                             
       size <- liftIO $ eval_expr env e                         
       arr <- liftIO $ (newArray (0,(fromIntegral.floor) size) (ConstExpr 0) :: IO (IOArray Int Expression))
@@ -276,19 +282,27 @@ interpreter n = do
       interpreter (n+1)                                                               
     
       
+
+
     (PRINT es) -> do
       case es of
         []  -> liftIO $ sequence [putStrLn ""]
         es' -> liftIO $ sequence $ (print_expression env) <$> es'
       interpreter (n+1)
 
-    END -> liftIO $ return ()
+    
+
+
+
 
     INPUT (string) (Var c) -> do
       (liftIO . putStr) string
       inp <- liftIO $ readLn
       liftIO $ writeArray tab c (ConstExpr inp)
       interpreter (n + 1)
+
+
+
 
     INPUT (string) (IDList ids) -> do
       (liftIO . putStr) string
@@ -298,15 +312,6 @@ interpreter n = do
       liftIO $ traverse assign $ zip (id' <$> ids) inputs
       interpreter (n+1)
 
-    -- a temp klunky way to accommodate a 2-input statement
-    -- ugly, I know
-    INPUTMULTI (string) [Var c1, Var c2] -> do
-      (liftIO . putStr) string
-      inp1 <- liftIO $ readLn
-      inp2 <- liftIO $ readLn
-      liftIO $ writeArray tab c1 (ConstExpr inp1)
-      liftIO $ writeArray tab c2 (ConstExpr inp2)
-      interpreter (n+1)
 
 
     FOR (Var c) e1 e2 step -> do
@@ -355,14 +360,16 @@ interpreter n = do
       let get_line = (\value -> case value of
                                   Nothing -> n
                                   Just (_,l) -> l)
-      let for_lines = [ l | l <- (program !) <$> get_line <$> values]
+
+      let finish_expressions = [ e2 | (FOR _ _ e2 _) <-
+                                   (program !) <$> get_line <$> values]
+
+      evaled_expressions <- liftIO $ traverse (eval_expr env) finish_expressions
+      evaled_values <- liftIO $ traverse (eval_expr env) ids 
       
-      let finish_expressions = [ e2 | (FOR _ _ e2 st) <- (program !) <$> get_line <$> values] --[N - I,N - 1.0]
-      evaled_expressions <- liftIO $ traverse (eval_expr env) finish_expressions --[9.0,9.0]
-      evaled_values <- liftIO $ traverse (eval_expr env) ids -- [1.0,1.0]
-      
---      let continue_list <- traverse $ (for_next_check env) <$> for_lines
-      let next_interpret = [ (i,l,v) | ((Just (i,l)),f,v) <- zip3 values evaled_expressions evaled_values, v < f]
+
+      let next_interpret = [ (i,l,v) | ((Just (i,l)),f,v) <-
+                               zip3 values evaled_expressions evaled_values, v < f]
 
       case next_interpret of
         [] -> interpreter (n + 1)
@@ -399,6 +406,13 @@ interpreter n = do
             Just a -> a
       interpreter l
     REM _ -> interpreter (n+1)
+
+    END -> liftIO $ return ()
+
+    ASSIGNMENT (Var c) e2 -> do
+      e <- liftIO $ (eval_expr env) e2
+      liftIO $ writeArray tab c (ConstExpr e)
+      interpreter (n+1)
       
     a -> do
       liftIO $ putStrLn $ "could not match" ++ show a
@@ -507,8 +521,8 @@ test_number_10  = ConstExpr ( 10)
 test_var_x      = Var 'X'
 test_var_y      = Var 'Y'
 test_var_z      = Var 'Z'
-test_valuevar   = VarVal test_var_x
-test_valuefxn   = FxnVal (RND (test_var_x))
+
+
 test_int_fxn_01 = INT (test_var_x)
 test_int_fxn_02 = INT (AddExpr (test_var_x) (test_var_y))
 test_int_fxn_03 = INT test_expr1
@@ -524,11 +538,11 @@ test_int_rnd_fxn_03
   = FxnExpr "INT" (AddExpr (MultExpr (FxnExpr "RND" test_number_5) (Var 'H')) (test_number_1))
 
 test_statement_for      = FOR test_var_x test_number_5 test_number_10
-test_statement_forstep  = FORSTEP test_var_x test_number_5 test_number_10 test_number_1
+
 test_statement_input    = INPUT "" test_var_y
 test_statement_let      = LET test_var_x test_number_5
 test_statement_next     = NEXT test_var_x
-test_statement_nextlist = NEXTLIST [test_var_x, test_var_y, test_var_z]
+
 multi_line_statement = "FOR T = 1 TO (N - R): PRINT \" \",: NEXT T"
 
 test_program         = "10 LET A = 2\n20 LET B = 3\n30 LET C = 4\n" ++
