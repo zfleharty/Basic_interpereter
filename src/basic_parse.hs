@@ -301,20 +301,60 @@ interpreter n = do
         else interpreter (n + 1)
 
 
+
+    FORSTEP (Var c) e1 e2 step -> do
+      start <- liftIO $ (eval_expr env) e1
+      finish <- liftIO $ (eval_expr env) e2
+      liftIO $ writeArray tab c (ConstExpr start)
+      s' <- liftIO $ (eval_expr env) step
+      let conditional = (case s' < 0 of
+                           True -> (<=)
+                           False -> (>=))
+      if start `conditional` finish
+        then case (lookup (c,n) for_next) of
+               Nothing -> do
+                 liftIO $ putStrLn "NextNotFound"
+                 interpreter (n + 1)
+               Just (_,l) -> interpreter (l + 1)
+        else interpreter (n + 1)
+
+
+
+
     NEXT (Var c) -> do
       let for_line = case (lookup (c,n) next_for) of
             Nothing -> n
             Just (_,l) -> l
-      let (FOR _ _ e2) = program ! for_line
-
-      finish <- liftIO $ (eval_expr env) e2
+--      let (FOR _ _ e) = program ! for_line
       (ConstExpr value) <- liftIO $ readArray tab c
-      
-      if value < finish
-        then do
-        liftIO $ writeArray tab c (ConstExpr (value + 1))
-        interpreter ( for_line + 1)
-        else interpreter ( n + 1)
+
+      liftIO $ (putStrLn.show) $ program ! for_line
+      case program ! for_line of
+        (FOR _ _ e) -> do                   
+          finish <- liftIO $ (eval_expr env) e
+          if value < finish
+            then do
+            liftIO $ writeArray tab c (ConstExpr (value + 1))
+            interpreter (for_line + 1)
+            else interpreter (n + 1)
+        (FORSTEP _ _ e step) -> do
+          finish <- liftIO $ (eval_expr env) e
+          s'      <- liftIO $ (eval_expr env) step
+
+          let conditional = (case s' < 0 of
+                              True -> (>=)
+                              False -> (<=))
+          if value `conditional` finish
+            then do
+            liftIO $ writeArray tab c (ConstExpr (value + s'))
+            interpreter (for_line + 1)
+            else interpreter (n + 1)
+                 
+      -- if value < finish
+      --   then do
+      --   liftIO $ writeArray tab c (ConstExpr (value + 1))
+      --   interpreter ( for_line + 1)
+      --   else interpreter ( n + 1)
 
 
 

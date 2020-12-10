@@ -79,7 +79,7 @@ rem_statement         :: Parser Statement
 statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement_alt,
                  print_statement,rem_statement,end_statement,goto_statement,
                  next_statement,gosub_statement,return_statement,dim_statement,
-                 assignment_statement, on_statement]
+                 assignment_statement, on_statement,for_step_statement]
 
 statement      = concatParsers statement_list
   
@@ -139,6 +139,17 @@ for_statement = do
   token p_to
   toExpr <- token expr
   return (FOR var fromExpr toExpr)
+
+for_step_statement = do
+  token p_for
+  var <- token p_id
+  token equal
+  fromExpr <- token expr
+  token p_to
+  toExpr <- token expr
+  token $ string "STEP"
+  step <- token expr
+  return (FORSTEP var fromExpr toExpr step)
 
 -- NEXT I or perhaps NEXT X, Y, Z?
 next_statement = do
