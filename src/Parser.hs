@@ -270,17 +270,17 @@ single_expr = do
   e <- expr
   return [e]
   
-expr_colon = do
-  e <- expr
-  (token (char ';'))
-  es <- print_list
-  return $ (StringColon e):es
+expr_colon = do{
+  e <- expr;
+  (token (char ';'));
+  es <- print_list;
+  return $ (StringColon e):es}
 
-expr_comma = do
-  e <- expr
-  token (char ',')
-  es <- print_list
-  return $ (StringComma e):es
+expr_comma = do {
+  e <- expr;
+  token (char ',');
+  es <- print_list;
+  return $ (StringComma e):es} +++ do {e <- expr; (token (char ',')); return $ [StringComma e]}
   
 -- Tried to add a TAB-related parser at the expr level
 -- (see tab_print_expr) further down, but it refused to cooperate and

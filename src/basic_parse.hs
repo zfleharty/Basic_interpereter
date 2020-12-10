@@ -152,9 +152,8 @@ eval_comp_expr' e = do
             "<=" -> (<=)
       return $ v1 `op` v2
 
-eval_expr arr e = (runReaderT $ eval_expr' e) arr
 
-
+eval_expr env e = (runReaderT $ eval_expr' e) env
 
 eval_expr'   :: Expression -> ReaderT (Environment) IO (Float)
 eval_expr' e = do
@@ -225,15 +224,18 @@ eval_expr' e = do
 
 
 
--- print_expression :: Environment -> Expression -> IO ()
+--print_expression :: Environment -> Expression -> IO ()
 -- print_expression env e = do
 --   case e of
---     (StringColon e') -> putStr $ show e'
---     (StringComma e') -> putStr $ show e'
---     (String' e')     -> putStrLn $ show e'
---     _ -> do
---       e' <- liftIO $ eval_expr env e
---       putStrLn $ show e'
+--     (StringColon e') ->  putStr $ printExpression e'
+--     (StringComma e') -> putStr $ printExpression e' ++ "\t"
+--     (String' str)    -> str ++ "\n"
+--     _ ->
+--       e' <- liftIO $ (eval_expr env) e
+--       show e
+  
+
+  
 
 -- experimenting here by Hoss
 print_expression :: Environment -> Expression -> IO ()
@@ -247,10 +249,10 @@ print_expression env e = do
           putStr $ show e''
     (StringComma e') -> do
       case e' of
-        String' e'' -> putStr $ show e'
+        String' e'' -> putStr $ show e' ++ "\t"
         _      -> do
           e'' <- liftIO $ eval_expr env e'
-          putStr $ show e''
+          putStr $ show e'' ++ "\t"
     (String' e')     -> putStrLn $ show e'
     _ -> do
       e' <- liftIO $ eval_expr env e
