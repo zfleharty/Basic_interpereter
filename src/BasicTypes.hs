@@ -65,23 +65,26 @@ data Environment = Program {s_table        :: IOArray Char Expression,
                             array_table    :: IOArray Char Expression,
                             basic_program  :: Array Int Statement,
                             line_map       :: Map Int Int,
-                            for_next       :: Map Int Int,
-                            next_for       :: Map Int Int}
+                            for_next       :: Map (Char,Int) (Char,Int),
+                            next_for       :: Map (Char,Int) (Char,Int)}
 
 
 -------------------------------------------------------------
 -- Derived instances for Data types                        --
 -------------------------------------------------------------
 
-
+instance Eq Expression where
+  (Var x) == (Var y) = x == y
+  
 instance Show Environment where
-  show (Program _ _ program mapping fNMap _ ) =
+  show (Program _ _ program mapping fNMap nFMap ) =
     "Environment{\n" ++
     "Symbol_table: " ++ "NO SHOW INSTANCE FOR IOARRAY YET\n" ++
     "array_table: " ++ "NO SHOW INSTANCE FOR IOARRAY YET\n" ++
     "Program:      " ++ show program ++ "\n" ++
     "line_map:     " ++ show mapping ++ "\n" ++
-    "FOR->Next:    " ++ show fNMap ++ "}"
+    "FOR->Next:    " ++ show fNMap ++ 
+    "Next->For:    " ++ show nFMap ++ "}"
 
 instance Show Expression where
 

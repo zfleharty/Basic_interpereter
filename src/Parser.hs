@@ -71,14 +71,14 @@ input_statement       :: Parser Statement
 input_multi_statement :: Parser Statement
 let_statement         :: Parser Statement
 next_statement        :: Parser Statement
-nextlist_statement    :: Parser Statement
+--nextlist_statement    :: Parser Statement
 print_statement       :: Parser Statement
 rem_statement         :: Parser Statement
 
 
 statement_list = [for_statement,input_multi_statement,input_statement,if_statement,let_statement_alt,
                  print_statement,rem_statement,end_statement,goto_statement,
-                 nextlist_statement, next_statement,gosub_statement,return_statement,dim_statement,
+                 next_statement,gosub_statement,return_statement,dim_statement,
                  assignment_statement, on_statement]
 
 statement      = concatParsers statement_list
@@ -143,14 +143,14 @@ for_statement = do
 -- NEXT I or perhaps NEXT X, Y, Z?
 next_statement = do
   token p_next
-  var <- token p_id
-  return (NEXT var)
+  ids <- token id_list
+  return (NEXT ids)
 
--- NEXT X, Y, Z
-nextlist_statement = do
-  token p_next
-  varlist <- token var_expr_list
-  return (NEXTLIST varlist)
+-- -- NEXT X, Y, Z
+-- nextlist_statement = do
+--   token p_next
+--   varlist <- token var_expr_list
+--   return (NEXTLIST varlist)
 
 -- LET X = Y
 let_statement = do
@@ -274,7 +274,7 @@ expr_colon = do{
   e <- expr;
   (token (char ';'));
   es <- print_list;
-  return $ (StringColon e):es}
+  return $ (StringColon e):es} +++ do {e <- expr; (token (char ';')); return $ [StringComma e]}
 
 expr_comma = do {
   e <- expr;

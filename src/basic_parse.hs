@@ -96,13 +96,13 @@ tuple_line    = do {num <- int; return num}
 --create_environment :: [Char] -> IOArray Char Expression -> Environment
 tupled_lines       :: String -> [Line_statement]
 parse_lines        :: (Num a, Enum a) => String -> [((Int, a), Statement)]
-find_next          :: Num p => t -> [(p, Statement)] -> p
+--find_next          :: Num p => t -> [(p, Statement)] -> p
 
 create_environment content table ar_table = Program table ar_table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
   where (lm,sa) = unzip $ parse_lines (content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
         list_prog = assocs program
-        f_n = [(i,find_next v (Prelude.drop i list_prog)) | (i,(FOR v _ _)) <- list_prog]
+        f_n = [((id' v,i),find_next v (Prelude.drop i list_prog)) | (i,(FOR v _ _)) <- list_prog]
         
 tupled_lines ls   = [let l_statement = Unparsed_line (fst tuple) (snd tuple)
                             where tuple = head (renumber x)
@@ -114,9 +114,15 @@ parse_lines lines = [let p_line = (lmap,((fst . head) stment))
                       in p_line | (n,ls) <- zip [1..] ((tupled_lines lines))]
 
 
-find_next _ []             = 0
+
+find_next _ []             = ('?',0)
 find_next var' ((i,s):rest) = case s of
-                               NEXT var' -> i
+                               NEXT (IDList ids) -> case (elem var' ids) of
+                                 True -> (id' var',i)
+                                 False -> find_next var' rest
+                               NEXT (single_var) -> case (single_var == var') of
+                                 True -> (id' var', i)
+                                 False -> find_next var' rest
                                _ -> find_next var' rest
 
 -----------------------------------------------------------------------
@@ -197,10 +203,6 @@ eval_expr' e = do
              else do
              rand <- liftIO $ randomRIO (0::Float,1::Float)
              return rand
-
-
-
-
              
          Array c e' -> do
            i <- liftIO $ r e'           
@@ -208,32 +210,9 @@ eval_expr' e = do
            (ConstExpr value) <- liftIO $ readArray (arr) (fromIntegral.floor $ i)
            return value
 
-
-
-
-
-
-           
          (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
            return $ (num constValue)
-
-         -- perhaps a default here to just print a string version
-         -- of whatever else comes up?
-         -- but can only return Floats!
-
-
-
---print_expression :: Environment -> Expression -> IO ()
--- print_expression env e = do
---   case e of
---     (StringColon e') ->  putStr $ printExpression e'
---     (StringComma e') -> putStr $ printExpression e' ++ "\t"
---     (String' str)    -> str ++ "\n"
---     _ ->
---       e' <- liftIO $ (eval_expr env) e
---       show e
-  
 
   
 
@@ -257,6 +236,8 @@ print_expression env e = do
     _ -> do
       e' <- liftIO $ eval_expr env e
       putStrLn $ show e'
+
+
 
 toInt = (fromIntegral.floor)
 
@@ -287,7 +268,6 @@ interpreter n = do
       
     (PRINT es) -> do
       liftIO $ sequence $ (print_expression env) <$> es
---      liftIO $ putStrLn ""
       interpreter (n+1)
 
     END -> liftIO $ return ()
@@ -313,30 +293,55 @@ interpreter n = do
       finish <- liftIO $ (eval_expr env) e2
       liftIO $ writeArray tab c (ConstExpr start)
       if start >= finish
-        then case (lookup n for_next) of
+        then case (lookup (c,n) for_next) of
                Nothing -> do
                  liftIO $ putStrLn "NextNotFound"
                  interpreter (n + 1)
-               Just l -> interpreter (l + 1)
+               Just (_,l) -> interpreter (l + 1)
         else interpreter (n + 1)
 
 
     NEXT (Var c) -> do
-      let for_line = case (lookup n next_for) of
+      let for_line = case (lookup (c,n) next_for) of
             Nothing -> n
-            Just l -> l
-      let (FOR _ e1 e2) = program ! for_line
+            Just (_,l) -> l
+      let (FOR _ _ e2) = program ! for_line
 
       finish <- liftIO $ (eval_expr env) e2
       (ConstExpr value) <- liftIO $ readArray tab c
-
+      
       if value < finish
         then do
         liftIO $ writeArray tab c (ConstExpr (value + 1))
         interpreter ( for_line + 1)
         else interpreter ( n + 1)
 
-    -- NEXTLIST 
+
+
+
+    NEXT (IDList ids) -> do
+      --NEXT J, I
+      let keys = (,) <$> (id' <$> ids) <*> pure n -- [('J',20),('I',20)]
+      let values = (`lookup` next_for) <$> keys --[Just ('J',15),Just ('I',14)]
+      let get_line = (\value -> case value of
+                                  Nothing -> n
+                                  Just (_,l) -> l)
+      let finish_expressions = [ e2 | (FOR _ _ e2) <- (program !) <$> get_line <$> values] --[N - I,N - 1.0]
+      evaled_expressions <- liftIO $ traverse (eval_expr env) finish_expressions --[9.0,9.0]
+      evaled_values <- liftIO $ traverse (eval_expr env) ids -- [1.0,1.0]
+
+      let next_interpret = [ (i,l,v) | ((Just (i,l)),f,v) <- zip3 values evaled_expressions evaled_values, v < f]
+
+      case next_interpret of
+        [] -> interpreter (n + 1)
+        ((i,l,v):_) -> do
+          liftIO $ writeArray tab i (ConstExpr (v + 1))
+          interpreter (l + 1)
+
+
+
+
+
 
 
     IF compExp e -> do
