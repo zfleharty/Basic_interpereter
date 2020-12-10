@@ -116,8 +116,8 @@ input_statement = do {
   token p_input;
   s <- todelim ';';
   token (char ';');
-  var <- token p_id;
-  return (INPUT s var)} +++ do {token p_input; var <- token p_id; return (INPUT "" var)}
+  ids <- token id_list;
+  return (INPUT s ids)} +++ do {token p_input; ids <- token id_list; return (INPUT "" ids)}
 
 -- INPUT "ENTER INPUT: "; X, Y
 -- klunky effort to accommodate multi-input INPUT statements
