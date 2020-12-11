@@ -7,30 +7,9 @@
 {- submitted …                                                        -}
 {-                                                                    -}
 {----------------------------------------------------------------------}
-
-{----------------------------------------------------------------------}
-{- A Haskell-based implementation of parser for a smallish subset of
-   the BASIC language.
-
-   We need to be able to parse and interpret the following two simple
-   BASIC programs:
-
-   test.bas
-   20 INPUT H
-   25 LET X = INT(RND(1)*H+1)
-   27 PRINT X
-   30 FOR I = 1 TO H
-   35 PRINT I
-   40 IF I = X THEN 60
-   50 NEXT I
-   60 END
-
-   foo.bas
-   10 LET A = 2
-   20 LET B = 3
-   30 LET C = 4
-   40 PRINT A * (B + C)
-   50 END                                                             -}
+{- A Haskell-based implementation of a parser and interpreter for
+   the BASIC language. 
+                                                                      -}
 {----------------------------------------------------------------------}
 
 import Data.Array.IO
@@ -52,13 +31,16 @@ import Data.Tuple
 import Prelude hiding (lookup,LT,GT)
 
 
--------------------------------------------------------------------------------------------
------------- Helper functions used to split up lines before parsing -----------------------
--------------------------------------------------------------------------------------------
-tuple_line  :: Parser Int
+------------------------------------------------------------------------
+--------- Helper functions used to split up lines before parsing -------
+------------------------------------------------------------------------
+
 split :: Parser [[Char]]
+split_colon :: Parser [[Char]]
+dont_split_colon :: Parser [[Char]]
 renumber    :: String -> [(Int, String)]
 restructure :: String -> [[Char]]
+tuple_line  :: Parser Int
 
 split = dont_split_colon +++ split_colon
 
@@ -79,7 +61,6 @@ dont_split_colon = do
     return $ [s0 ++ s1 ++ s2 ++ s3]
   }
 
-
 renumber l = case parse tuple_line l of
                [] -> [(0,newLine)]
                tup -> tup
@@ -87,19 +68,21 @@ renumber l = case parse tuple_line l of
 
 restructure s = concat $ ((fst.head) . (parse split)) <$> (lines s)
 
-
 tuple_line    = do {num <- int; return num}
 
 
------------------------------------------------------------------------------------
------------------- Functions used to create environment ----------------------------
------------------------------------------------------------------------------------
---create_environment :: [Char] -> IOArray Char Expression -> Environment
+------------------------------------------------------------------------
+--------- Functions used to create environment -------------------------
+------------------------------------------------------------------------
+
+create_environment :: String -> IOArray Char Expression
+                      -> IOArray Char Expression -> Environment
 tupled_lines       :: String -> [Line_statement]
 parse_lines        :: (Num a, Enum a) => String -> [((Int, a), Statement)]
---find_next          :: Num p => t -> [(p, Statement)] -> p
+find_next          :: Num p => Expression -> [(p, Statement)] -> (Char, p)
 
-create_environment content table ar_table = Program table ar_table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
+create_environment content table ar_table =
+  Program table ar_table program (fromList lm) (fromList f_n) (fromList $ fmap swap f_n)
   where (lm,sa) = unzip $ parse_lines (content)
         program = array (1,length sa) [x | x <- zip [1..] sa]
         list_prog = assocs program
@@ -114,8 +97,6 @@ parse_lines lines = [let p_line = (lmap,((fst . head) stment))
                                   lmap = (line_num ls,n)
                       in p_line | (n,ls) <- zip [1..] ((tupled_lines lines))]
 
-
-
 find_next _ []             = ('?',0)
 find_next var' ((i,s):rest) = case s of
                                NEXT (IDList ids) -> case (elem var' ids) of
@@ -126,9 +107,9 @@ find_next var' ((i,s):rest) = case s of
                                  False -> find_next var' rest
                                _ -> find_next var' rest
 
------------------------------------------------------------------------
---------------------- Evaluate Expression types -----------------------
------------------------------------------------------------------------
+------------------------------------------------------------------------
+--------- Evaluate Expression types ------------------------------------
+------------------------------------------------------------------------
 
 eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
 
@@ -515,34 +496,6 @@ test_interp' file = do
   let env = create_environment content symbol_table ar_table
   (runReaderT (interpreter 1)) env
 
-{- 
-   As of Sun 12/6/2020, using the test_interp or test_interp' function,
-   the following program files execute just fine:
-
-     foo.bas
-     test.bas
-     guess.bas
-     fib.bas
-     gcd.bas
-     root.bas
-
-   Still not quite working:
-
-     sieve.bas:
-         (1) Need a single 1-D array to hold integer values
-     pascal.bas:
-         (1) Need a single 1-D array to hold integer values
-     bubblesort.bas:
-         (1) Need a single 1-D array to hold integer values
-     amazing.bas:
-         (1) Need a dual-input INPUT statement, suggesting we
-             generalize the INPUT statement from
-             INPUT String Expression to INPUT String [Expression]
-             or even INPUT String [Var]
-         (2) Need multiple 2-D arrays (the arrays would hold integers)
-
--}
-
 test_parser file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
@@ -551,7 +504,6 @@ test_parser file = do
   let env = create_environment content table ar_table
   let sorted_array = basic_program env
   sequence $ (putStrLn.show) <$> sorted_array
-
 
 get_test_material file = do
   handle <- openFile file ReadMode
