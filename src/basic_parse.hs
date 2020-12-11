@@ -64,17 +64,17 @@ split = dont_split_colon +++ split_colon
 
 split_colon = do
   {
-    s0 <- token $ todelim ':';
+    s0 <- todelim ':';
     token $ char ':';
-    s1 <- token split_colon;
+    s1 <- split_colon;
     return $ [s0]++s1
   } +++ do {s <- todelim ':'; return [s]}
 
 dont_split_colon = do
   {
-    s0 <- token $ todelim_include '\"';
-    s1 <- token $ todelim_include ':';
-    s2 <- token $ todelim_include '\"';
+    s0 <- todelim_include '\"';
+    s1 <- todelim_include ':';
+    s2 <- todelim_include '\"';
     s3 <- many item;
     return $ [s0 ++ s1 ++ s2 ++ s3]
   }
