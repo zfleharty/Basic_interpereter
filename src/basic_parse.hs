@@ -324,8 +324,13 @@ interpreter n = do
 
     
 
+    ON e is -> do
+      e' <- liftIO $ (eval_expr env) e
+      if (toInt e') > (length is) then interpreter (n + 1)
+      else case (lookup ((last.take (toInt e')) is) lines) of
+             Nothing -> interpreter (n+1)
+             (Just l) -> interpreter l
 
-    
 
     INPUT (string) (Var c) -> do
       (liftIO . putStr) string
