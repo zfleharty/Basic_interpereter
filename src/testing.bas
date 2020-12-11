@@ -1,7 +1,9 @@
-10 DIM V(2,2)
+10 DIM V(2,2),W(3,3)
 11 PRINT V(0,0)
 20 LET V(0,0) = 1
 30 LET V(0,1) = 2
+31 V(0,0) = 33
 40 PRINT V(0,0)
 50 PRINT V(0,0)
+60 PRINT ".--";:PRINT ".  ";
 END

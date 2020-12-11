@@ -36,6 +36,7 @@ p_then   :: Parser String
 p_gosub  :: Parser String
 p_return :: Parser String
 p_tab    :: Parser String
+p_not    :: Parser String
 parensed :: Parser a -> Parser a 
 
 p_end    = string "END"
@@ -282,7 +283,7 @@ expr_colon = do{
   e <- expr;
   (token (char ';'));
   es <- print_list;
-  return $ (StringColon e):es} +++ do {e <- expr; (token (char ';')); return $ [StringComma e]}
+  return $ (StringColon e):es} +++ do {e <- expr; (token (char ';')); return $ [StringColon e]}
 
 expr_comma = do {
   e <- expr;

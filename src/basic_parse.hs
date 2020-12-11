@@ -75,7 +75,8 @@ dont_split_colon = do
     s0 <- token $ todelim_include '\"';
     s1 <- token $ todelim_include ':';
     s2 <- token $ todelim_include '\"';
-    return $ [s0 ++ s1 ++ s2]
+    s3 <- many item;
+    return $ [s0 ++ s1 ++ s2 ++ s3]
   }
 
 
@@ -457,6 +458,7 @@ interpreter n = do
           ix' <- liftIO $ (eval_expr env) d
           (OneDArray arr) <- liftIO $ readArray (ar_table) i
           liftIO $ writeArray arr (toInt ix') (ConstExpr e')
+      interpreter (n+1)
           
 
 

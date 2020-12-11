@@ -92,7 +92,7 @@ instance Show Expression where
   show (DivExpr e1 e2)    = (show e1) ++ " / " ++ (show e2)
   show (ConstExpr x)      = show x
   show (Var x)            = show (NoQuotesChar x)
-  show (StringColon e)    = show (e)
+  show (StringColon e)    = show (e) ++ "col"
   show (StringComma e)    = show (e) ++ "\t"
   show (String' s)        = s 
   show (FxnExpr s x)      = s ++ "(" ++ (show x) ++ ")"
