@@ -324,13 +324,13 @@ interpreter n = do
 
     
 
-    ON e is -> do
+    (ON e is) -> do
       e' <- liftIO $ (eval_expr env) e
       if (toInt e') > (length is) then interpreter (n + 1)
-      else case (lookup ((last.take (toInt e')) is) lines) of
-             Nothing -> interpreter (n+1)
-             (Just l) -> interpreter l
-
+        else case (lookup ((last.take (toInt e')) is) lines) of
+               Nothing -> interpreter (n+1)
+               (Just l) -> interpreter l
+    
 
     INPUT (string) (Var c) -> do
       (liftIO . putStr) string
@@ -446,11 +446,27 @@ interpreter n = do
 
     END -> liftIO $ return ()
 
+    ASSIGNMENT (Array i d) e -> do
+      e' <- liftIO $ (eval_expr env) e
+      case d of
+        (ExpressionList es) -> do
+          (w:h:[]) <- liftIO $ traverse (eval_expr env)  es
+          (TwoDArray arr) <- liftIO $ readArray (ar_table) i
+          liftIO $ writeArray arr (toInt w, toInt h) (ConstExpr e')
+        _ -> do
+          ix' <- liftIO $ (eval_expr env) d
+          (OneDArray arr) <- liftIO $ readArray (ar_table) i
+          liftIO $ writeArray arr (toInt ix') (ConstExpr e')
+          
+
+
     ASSIGNMENT (Var c) e2 -> do
       e <- liftIO $ (eval_expr env) e2
       liftIO $ writeArray tab c (ConstExpr e)
       interpreter (n+1)
-      
+
+
+
     a -> do
       liftIO $ putStrLn $ "could not match" ++ show a
       interpreter (n+1)
