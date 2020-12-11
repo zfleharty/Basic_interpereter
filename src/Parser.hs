@@ -4,6 +4,7 @@ import BasicTypes
 import Parselib
 import Data.Char
 import Prelude hiding (LT,GT)
+
 -- =========================================== --
 --  Parsers for special individual characters  --
 -- =========================================== --
@@ -340,19 +341,16 @@ p_id          = do {var <- token upper; return (Var var)}
 num_expr       = do {d <- token int; return (ConstExpr (realToFrac d))}
 
 
-
-
-------------------------------------------------------------------------------------
--- List of expressions to mappend together. When new expression parser is created --
--- add to this list definition to mappend it as part of the full expression type  --
--- parser                                                                         --
-------------------------------------------------------------------------------------
-expr_list' = [tab_print_expr, and_expr, not_expr, comp_expr, add_expr, mult_expr, 
-             rnd_fxn_expr, int_fxn_expr, str_expr]
+------------------------------------------------------------------------
+-- List of expressions to mappend together. When a new expression
+-- parser is created, add to this list definition to mappend it as
+-- part of the full expression type parser, but also realize that the
+-- list may be order sensitive.
+------------------------------------------------------------------------
+expr_list' = [tab_print_expr, and_expr, not_expr, comp_expr, add_expr,
+              mult_expr, rnd_fxn_expr, int_fxn_expr, str_expr]
 
 expr = concatParsers expr_list'
-
-
 
 expr' = do {
   e1 <- token and_expr;
@@ -370,7 +368,6 @@ not_expr = do {
   token p_not;
   e <- token comp_expr;
   return (NotExpr e)} +++ comp_expr
-
 
 comp_expr = do {                  
   e1 <- token add_expr;
@@ -396,9 +393,7 @@ mult_expr = do {
 
 value = (parensed expr) +++  function_expr +++ (num_expr) +++ variable +++ (p_id)
 
-
 function_expr = rnd_fxn_expr +++ int_fxn_expr
-
 
 str_expr = do
   string "\""
