@@ -205,10 +205,17 @@ eval_expr' e = do
              return rand
              
          Array c e' -> do
-           i <- liftIO $ r e'           
-           (OneDArray arr) <- liftIO $ readArray (array_table env) c
-           (ConstExpr value) <- liftIO $ readArray (arr) (fromIntegral.floor $ i)
-           return value
+           case e' of
+             (ExpressionList es) -> do
+               (a:b:[]) <- liftIO $ sequence $ r <$> es
+               (TwoDArray arr) <- liftIO $ readArray (array_table env) c
+               (ConstExpr value) <- liftIO $ readArray arr (toInt a,toInt b)
+               return value
+             _ -> do
+               i <- liftIO $ r e'           
+               (OneDArray arr) <- liftIO $ readArray (array_table env) c
+               (ConstExpr value) <- liftIO $ readArray (arr) (toInt i)
+               return value
 
          (Var v) -> do
            constValue <- liftIO $ (readArray tab v)
@@ -241,6 +248,7 @@ print_expression env e = do
 
 toInt = (fromIntegral.floor)
 
+
 for_next_check env (FOR var' _ finish step) = do
   finish' <- liftIO $ (eval_expr env) finish
   (ConstExpr value) <- liftIO $ readArray (s_table env) (id' var')
@@ -250,6 +258,20 @@ for_next_check env (FOR var' _ finish step) = do
                        False -> (<=))
   return $ (((value + s') `conditional` finish'),s')
 
+
+create_array env e = do
+  case e of
+    (ExpressionList es)-> do
+      (w:h:[]) <- liftIO $ sequence $ (eval_expr env) <$> es
+      arr <- liftIO $ newArray ((0,0),(toInt w,toInt h)) (ConstExpr 0) :: IO (IOArray (Int,Int) Expression)
+      return $ TwoDArray arr
+    _ -> do
+      l <- liftIO $  (eval_expr env) e
+      arr <- liftIO $ newArray (0,toInt l) (ConstExpr 0) :: IO (IOArray Int Expression)
+      return $ OneDArray arr
+
+      
+    
 
 interpreter   :: Int -> ReaderT Environment IO ()
 interpreter n = do
@@ -267,31 +289,30 @@ interpreter n = do
 
     (LET (Array c i) e) -> do
       value <- liftIO $(eval_expr env) e
-      i' <- liftIO $  (eval_expr env) i
-      (OneDArray arr) <- liftIO $ readArray ar_table c
-      liftIO $ writeArray arr (toInt i') (ConstExpr value)
+      case i of
+        (ExpressionList es) -> do
+          (w:h:[]) <- liftIO $ sequence $ (eval_expr env) <$> es
+          (TwoDArray arr) <- liftIO $ readArray ar_table c
+          liftIO $ writeArray arr (toInt w, toInt h) (ConstExpr value)
+        _ -> do
+          i' <- liftIO $  (eval_expr env) i
+          (OneDArray arr) <- liftIO $ readArray ar_table c
+          liftIO $ writeArray arr (toInt i') (ConstExpr value)
       interpreter (n+1)
     
-
-
-
     DIM (Array c e) -> do                                                             
-      size <- liftIO $ eval_expr env e                         
-      arr <- liftIO $ (newArray (0,(fromIntegral.floor) size) (ConstExpr 0) :: IO (IOArray Int Expression))
-      liftIO $ writeArray ar_table c (OneDArray arr)                                  
+      arr <- liftIO $ create_array env e
+      liftIO $ writeArray ar_table c arr                                  
       interpreter (n+1)                                                               
     
     DIM (ArrayList arrs) -> do
       let eval' = (\(f,ls) -> liftIO $ sequence $ f <$> ls)
+      let dimensions = (size' <$> arrs)
+      let is = i <$> arrs
+      arrs' <- eval' (create_array env, dimensions)
+      let write_array = (\(i',a) -> writeArray ar_table i' a)
 
-      sizes   <- eval' $ ((eval_expr env),(size' <$> arrs))
-      let indices = i <$> arrs
-
-      let create_array = (\s -> (newArray (0,(fromIntegral.floor) s) (ConstExpr 0) :: IO (IOArray Int Expression)))
-      let write_array = (\(i,a) -> writeArray ar_table i (OneDArray a))
-
-      new_arrs <- eval' $ (create_array,sizes)
-      eval' $ (write_array, (zip indices new_arrs))
+      eval' $ (write_array,(zip is arrs'))
       interpreter (n+1)
 
 
@@ -304,7 +325,7 @@ interpreter n = do
     
 
 
-
+    
 
     INPUT (string) (Var c) -> do
       (liftIO . putStr) string

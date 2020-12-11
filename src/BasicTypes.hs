@@ -41,7 +41,7 @@ data Expression     = AddExpr Expression Expression
                     | AndExpr Expression Expression
                     | OrExpr Expression Expression
                     | OneDArray (IOArray Int Expression)
-                    | TwoDArray (IOArray Int (IOArray Int Expression))
+                    | TwoDArray (IOArray (Int,Int) Expression)
 
 data Function       = INT Expression
                     | RND Expression
