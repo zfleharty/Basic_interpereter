@@ -31,6 +31,8 @@ import Parser
 import BasicTypes
 import Data.Tuple
 import Prelude hiding (lookup,LT,GT)
+import System.Environment
+import System.Directory
 
 ------------------------------------------------------------------------
 --------- Helper functions used to split up lines before parsing -------
@@ -431,24 +433,35 @@ interpreter n = do
       interpreter (n+1)
 
 
+-- main = do
+--   --args <- getArgs
+--   --fileExists <- doesFileExist $ head args
+--   if True -------------------- fileExists __________________Changed for testing inside interactive GHCI without command line args
+--     then do handle <- openFile ("test.bas") ReadMode
+--             content <- hGetContents handle
+
+--             table <- newArray ('A','Z')
+--                      (ConstExpr 0) :: IO (IOArray Char Expression)
+
+--             putStrLn "FINISH LINE"
+--             -- putStrLn $ show f_n
+--             -- putStrLn $ show n_f
+--             -- putStrLn $ show linemap
+--             -- putStrLn $ show sorted_ar
+--     else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
+
+
 main = do
-  --args <- getArgs
-  --fileExists <- doesFileExist $ head args
-  if True -------------------- fileExists __________________Changed for testing inside interactive GHCI without command line args
-    then do handle <- openFile ("test.bas") ReadMode
+  args <- getArgs
+  fileExists <- doesFileExist $ head args
+  if True -- file exists
+    then do handle <- openFile (head args) ReadMode
             content <- hGetContents handle
-
-            table <- newArray ('A','Z')
-                     (ConstExpr 0) :: IO (IOArray Char Expression)
-
-            putStrLn "FINISH LINE"
-            -- putStrLn $ show f_n
-            -- putStrLn $ show n_f
-            -- putStrLn $ show linemap
-            -- putStrLn $ show sorted_ar
-    else do putStrLn $ "File " ++ ("") ++ " Does Not Exist."
-
-
+            symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+            ar_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+            let env = create_environment content symbol_table ar_table
+            (runReaderT (interpreter 1)) env
+    else do  putStrLn $ "File " ++ ("") ++ " Does Not Exist."
 
 -- ================================================================= --
 --          Some convenience definitions for testing                 --
