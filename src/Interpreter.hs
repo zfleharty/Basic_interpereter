@@ -457,8 +457,10 @@ main = do
   if True -- file exists
     then do handle <- openFile (head args) ReadMode
             content <- hGetContents handle
-            symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-            ar_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+            symbol_table <- newArray ('A','Z')
+                            (ConstExpr 0) :: IO (IOArray Char Expression)
+            ar_table <- newArray ('A','Z')
+                        (ConstExpr 0) :: IO (IOArray Char Expression)
             let env = create_environment content symbol_table ar_table
             (runReaderT (interpreter 1)) env
     else do  putStrLn $ "File " ++ ("") ++ " Does Not Exist."
