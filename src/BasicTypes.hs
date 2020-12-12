@@ -1,3 +1,20 @@
+{----------------------------------------------------------------------}
+{-                                                                    -}
+{- CS 556: Adv Declarative Programming                                -}
+{- Fall 2020                                                          -}
+{- Project 03: BASIC parser                                           -}
+{- Zach Fleharty & Hoss Craft                                         -}
+{- Submitted Sat 12/12/2020                                           -}
+{-                                                                    -}
+{----------------------------------------------------------------------}
+{- BasicTypes.hs
+   Required for Interpreter.hs, which is the main file for a
+   Haskell-based implementation of a parser/interpreter for the
+   BASIC language. Also see related required files Parser.hs, and
+   Parselib.hs.
+                                                                      -}
+{----------------------------------------------------------------------}
+
 module BasicTypes where
 
 
