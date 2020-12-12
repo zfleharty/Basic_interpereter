@@ -19,6 +19,16 @@ combinators that were not discussed in the article for reasons of space:
 
 ---------------------------------------------------------------------}
 
+{- -------------------------------------------------------------------
+
+   Some minor modifications were made to this file by ZF and HC for
+   use with the CS 556 (Declarative Programming) Proj 03, Fall 2020.
+   Primarily, see:
+   * the addition of the todelim and todelim_include Parsers
+   * a modification of concatParsers to include token
+
+---------------------------------------------------------------------}
+
 module Parselib
    (Parser, item, sat, (+++), string, many, many1, sepby, sepby1,
     chainl, chainl1, char, digit, lower, upper, letter, alphanum,
