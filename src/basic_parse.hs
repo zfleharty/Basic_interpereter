@@ -204,8 +204,6 @@ eval_expr' e = do
            return $ (num constValue)
 
   
-
--- experimenting here by Hoss
 print_expression :: Environment -> Expression -> IO ()
 print_expression env e = do
   case e of
@@ -476,10 +474,29 @@ main = do
 
 -- ================================================================= --
 --          Some convenience definitions for testing                 --
+--          and performing parse/interpretations in ghci             --
 -- ================================================================= --
 
-
+-- ---------------------------------------------------------------------
+-- test_interp     Processes, parses, and interprets a BASIC code file.
+--                 Usage, from interactive gchi:
+--                     test_interp "foo.bas"
+-- ---------------------------------------------------------------------
+test_interp :: FilePath -> IO ()
 test_interp file = do
+  handle <- openFile file ReadMode
+  content <- hGetContents handle
+  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  ar_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
+  let env = create_environment content symbol_table ar_table
+  (runReaderT (interpreter 1)) env
+
+-- ---------------------------------------------------------------------
+-- test_interp'    Same as test_interp, but also prints out the
+--                 environment information (useful for debugging)
+-- ---------------------------------------------------------------------
+test_interp' :: FilePath -> IO ()
+test_interp' file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
   symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
@@ -488,14 +505,12 @@ test_interp file = do
   putStrLn $ show env
   (runReaderT (interpreter 1)) env
 
-test_interp' file = do
-  handle <- openFile file ReadMode
-  content <- hGetContents handle
-  symbol_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  ar_table <- newArray ('A','Z') (ConstExpr 0) :: IO (IOArray Char Expression)
-  let env = create_environment content symbol_table ar_table
-  (runReaderT (interpreter 1)) env
-
+-- ---------------------------------------------------------------------
+-- test_parser     Processes and parses (but does not interpret) a
+--                 BASIC code file. Usage, from interactive gchi:
+--                     test_parser "foo.bas"
+-- ---------------------------------------------------------------------
+test_parser :: FilePath -> IO (Array Int ())
 test_parser file = do
   handle <- openFile file ReadMode
   content <- hGetContents handle
@@ -512,77 +527,22 @@ get_test_material file = do
   let env = create_environment content table
   return (env)
 
+test_foo     = "10 LET A = 2\n20 LET B = 3\n30 LET C = 4\n" ++
+               "40 PRINT A * (B + C)\n50 END"
 
+test_amazing =
+  "10 PRINT TAB(28); \"AMAZING PROGRAM\"\n" ++
+  "20 PRINT TAB(15);\"CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\"\n" ++
+  "30 PRINT:PRINT:PRINT:PRINT\n" ++
+  "100 INPUT \"WHAT ARE YOUR WIDTH AND LENGTH\";H,V\n" ++
+  "102 IF H<>1 AND V<>1 THEN 110\n" ++
+  "104 PRINT \"MEANINGLESS DIMENSIONS.  TRY AGAIN.\":GOTO 100\n" ++
+  "110 DIM W(H,V),V(H,V)\n" ++
+  "120 PRINT\n" ++
+  "130 PRINT\n" ++
+  "140 PRINT\n" ++
+  "150 PRINT\n" ++
+  "160 Q=0:Z=0:X=INT(RND(1)*H+1)\n" ++
+  "180 PRINT \":  \";\n"
 
-
-test_io_array = newArray ('A','Z')
-                         (ConstExpr 0) :: IO (IOArray Char Expression)
-
-test_expr1 = (MultExpr (ConstExpr 2) (AddExpr (ConstExpr ( 3)) (ConstExpr ( 4.3))))
-test_expr2 = (MultExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
-test_expr3 = (AddExpr ((Var 'A')) (AddExpr ((Var 'B')) ((Var 'C'))))
-
-test_number_1   = ConstExpr ( 1)
-test_number_5   = ConstExpr ( 5)
-test_number_10  = ConstExpr ( 10)
-test_var_x      = Var 'X'
-test_var_y      = Var 'Y'
-test_var_z      = Var 'Z'
-
-
-test_int_fxn_01 = INT (test_var_x)
-test_int_fxn_02 = INT (AddExpr (test_var_x) (test_var_y))
-test_int_fxn_03 = INT test_expr1
-test_rnd_fxn_01 = RND (test_var_y)
-test_rnd_fxn_02 = RND (AddExpr (test_var_x) (test_var_y))
-test_rnd_fxn_03 = RND (test_expr1)
-
-test_int_rnd_fxn_01
-  = FxnExpr "INT" (FxnExpr "RND" test_number_5)
-test_int_rnd_fxn_02
-  = FxnExpr "INT" (MultExpr (FxnExpr "RND" test_number_5) (AddExpr ((Var 'H')) test_number_1))
-test_int_rnd_fxn_03
-  = FxnExpr "INT" (AddExpr (MultExpr (FxnExpr "RND" test_number_5) (Var 'H')) (test_number_1))
-
-test_statement_for      = FOR test_var_x test_number_5 test_number_10
-
-test_statement_input    = INPUT "" test_var_y
-test_statement_let      = LET test_var_x test_number_5
-test_statement_next     = NEXT test_var_x
-
-multi_line_statement = "FOR T = 1 TO (N - R): PRINT \" \",: NEXT T"
-
-test_program         = "10 LET A = 2\n20 LET B = 3\n30 LET C = 4\n" ++
-                       "40 PRINT A * (B + C)\n50 END"
-test_program_fail    = "10 LET A = 2\n20 LET B = 3\nLET C = 4\n" ++
-                       "40 PRINT A * (B + C)\n50 END"
-test_program_list    = ["10 LET A = 2",
-                        "20 LET B = 3",
-                        "30 LET C = 4",
-                        "40 PRINT A * (B + C)",
-                        "50 END"]
-test_program_list_02 = ["30 LET C = 4",
-                        "20 LET B = 3",
-                        "10 LET A = 2",
-                        "40 PRINT A * (B + C)",
-                        "50 END"]
-test_program_if_1   = "IF X<>1 AND Y<>1 THEN 100"
-test_program_if_2   = "IF A(J) <= A(J+1) THEN 2070"
-test_program_print_1   = "PRINT \"Hello!\""
-test_program_print_2   = "PRINT TAB(10); \"Hello!\""
-test_program_input_2   = "INPUT \"Enter Inputs\"; X, Y"
-test_pascal = "10 REM PASCAL'S TRIANGLE\n15 DIM V(100)\n20 INPUT \"NUMBER OF ROWS\"; N\n25 FOR T = 1 TO N: PRINT \" \",: NEXT T\n30 PRINT 1: PRINT\n35 LET V(1) = 1\n40 FOR R = 2 TO N\n45 PRINT: PRINT\n50 FOR T = 1 TO (N - R): PRINT \" \",: NEXT T\n55 PRINT \" \",\n60 FOR I = R TO 1 STEP -1\n65 LET V(I) = V(I) + V(I-1)\n70 PRINT V(I), \" \",\n75 NEXT I\n80 PRINT\n85 NEXT R\n90 END\n"
-test_amazing = "10 PRINT TAB(28); \"AMAZING PROGRAM\"\n" ++
-               "20 PRINT TAB(15);\"CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\"\n" ++
-               "30 PRINT:PRINT:PRINT:PRINT\n" ++
-               "100 INPUT \"WHAT ARE YOUR WIDTH AND LENGTH\";H,V\n" ++
-               "102 IF H<>1 AND V<>1 THEN 110\n" ++
-               "104 PRINT \"MEANINGLESS DIMENSIONS.  TRY AGAIN.\":GOTO 100\n" ++
-               "110 DIM W(H,V),V(H,V)\n" ++
-               "120 PRINT\n" ++
-               "130 PRINT\n" ++
-               "140 PRINT\n" ++
-               "150 PRINT\n" ++
-               "160 Q=0:Z=0:X=INT(RND(1)*H+1)\n" ++
-               "180 PRINT \":  \";\n"
 showProgram f string = sequence $ putStrLn <$> (f string)
