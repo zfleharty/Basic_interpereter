@@ -119,7 +119,8 @@ instance Show Line_statement where
 
 instance Show Statement where
   show (FOR x e1 e2 e3)
-    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++ (show e2) ++ " {" ++ show e3++ "}"
+    = "FOR " ++ (show x) ++ " = " ++ (show e1) ++ " TO " ++
+                (show e2) ++ " {" ++ show e3++ "}"
   show (IF e x)          = "IF "    ++ (show e) ++ " THEN " ++ (show x)
   show (DIM e)           = "DIM " ++ show e
   show (INPUT s x)       = "INPUT " ++ s ++ " " ++ (show x)
