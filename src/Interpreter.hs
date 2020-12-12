@@ -1,14 +1,16 @@
-----------------------------------------------------------------------}
+{----------------------------------------------------------------------}
 {-                                                                    -}
 {- CS 556: Adv Declarative Programming                                -}
 {- Fall 2020                                                          -}
 {- Project 03: BASIC parser                                           -}
 {- Zach Fleharty & Hoss Craft                                         -}
-{- submitted …                                                        -}
+{- Submitted Sat 12/12/2020                                           -}
 {-                                                                    -}
 {----------------------------------------------------------------------}
-{- A Haskell-based implementation of a parser and interpreter for
-   the BASIC language. 
+{- Interpreter.hs
+   The main file for a Haskell-based implementation of a
+   parser/interpreter for the BASIC language. Also see related
+   required files BasicTypes.hs, Parser.hs, and Parselib.hs.
                                                                       -}
 {----------------------------------------------------------------------}
 
@@ -29,7 +31,6 @@ import Parser
 import BasicTypes
 import Data.Tuple
 import Prelude hiding (lookup,LT,GT)
-
 
 ------------------------------------------------------------------------
 --------- Helper functions used to split up lines before parsing -------
@@ -111,8 +112,10 @@ find_next var' ((i,s):rest) = case s of
 --------- Evaluate Expression types ------------------------------------
 ------------------------------------------------------------------------
 
+eval_comp_expr :: MonadIO m => Environment -> Expression -> m Bool
 eval_comp_expr arr e = (runReaderT $ eval_comp_expr' e) arr
 
+eval_comp_expr' :: MonadIO m => Expression -> ReaderT Environment m Bool
 eval_comp_expr' e = do
   tab <- ask
   case e of
@@ -140,7 +143,7 @@ eval_comp_expr' e = do
             "<=" -> (<=)
       return $ v1 `op` v2
 
-
+eval_expr :: Environment -> Expression -> IO Float
 eval_expr env e = (runReaderT $ eval_expr' e) env
 
 eval_expr'   :: Expression -> ReaderT (Environment) IO (Float)
@@ -225,10 +228,11 @@ print_expression env e = do
       putStrLn $ show e'
 
 
-
+toInt :: Float -> Int
 toInt = (fromIntegral.floor)
 
 
+for_next_check :: MonadIO m => Environment -> Statement -> m (Bool, Float)
 for_next_check env (FOR var' _ finish step) = do
   finish' <- liftIO $ (eval_expr env) finish
   (ConstExpr value) <- liftIO $ readArray (s_table env) (id' var')
@@ -239,21 +243,24 @@ for_next_check env (FOR var' _ finish step) = do
   return $ (((value + s') `conditional` finish'),s')
 
 
+create_array :: Environment -> Expression -> IO Expression
 create_array env e = do
   case e of
     (ExpressionList es)-> do
       (w:h:[]) <- liftIO $ sequence $ (eval_expr env) <$> es
-      arr <- liftIO $ newArray ((0,0),(toInt w,toInt h)) (ConstExpr 0) :: IO (IOArray (Int,Int) Expression)
+      arr <- liftIO $
+        newArray ((0,0),(toInt w,toInt h))
+        (ConstExpr 0) :: IO (IOArray (Int,Int) Expression)
       return $ TwoDArray arr
     _ -> do
       l <- liftIO $  (eval_expr env) e
-      arr <- liftIO $ newArray (0,toInt l) (ConstExpr 0) :: IO (IOArray Int Expression)
+      arr <- liftIO $
+        newArray (0,toInt l)
+        (ConstExpr 0) :: IO (IOArray Int Expression)
       return $ OneDArray arr
 
-      
-    
 
-interpreter   :: Int -> ReaderT Environment IO ()
+interpreter :: Int -> ReaderT Environment IO ()
 interpreter n = do
   env@(Program tab ar_table program lines for_next next_for) <- ask
   let s = program ! n
@@ -263,9 +270,6 @@ interpreter n = do
       c <- liftIO $ (eval_expr env) e
       liftIO $ writeArray tab i (ConstExpr c)
       interpreter (n+1)
-
-
-
 
     (LET (Array c i) e) -> do
       value <- liftIO $(eval_expr env) e
@@ -295,14 +299,11 @@ interpreter n = do
       eval' $ (write_array,(zip is arrs'))
       interpreter (n+1)
 
-
     (PRINT es) -> do
       case es of
         []  -> liftIO $ sequence [putStrLn ""]
         es' -> liftIO $ sequence $ (print_expression env) <$> es'
       interpreter (n+1)
-
-    
 
     (ON e is) -> do
       e' <- liftIO $ (eval_expr env) e
@@ -310,16 +311,12 @@ interpreter n = do
         else case (lookup ((last.take (toInt e')) is) lines) of
                Nothing -> interpreter (n+1)
                (Just l) -> interpreter l
-    
 
     INPUT (string) (Var c) -> do
       (liftIO . putStr) string
       inp <- liftIO $ readLn
       liftIO $ writeArray tab c (ConstExpr inp)
       interpreter (n + 1)
-
-
-
 
     INPUT (string) (IDList ids) -> do
       (liftIO . putStr) string
@@ -328,8 +325,6 @@ interpreter n = do
       let assign = (\(c,inp) -> writeArray tab c (ConstExpr inp))
       liftIO $ traverse assign $ zip (id' <$> ids) inputs
       interpreter (n+1)
-
-
 
     FOR (Var c) e1 e2 step -> do
       start <- liftIO $ (eval_expr env) e1
@@ -349,9 +344,6 @@ interpreter n = do
                  interpreter (l + 1)
         else interpreter (n + 1)
 
-
-
-
     NEXT (Var c) -> do
       let for_line = case (lookup (c,n) next_for) of
             Nothing -> n
@@ -364,11 +356,6 @@ interpreter n = do
         liftIO $ writeArray tab c (ConstExpr (value + s''))
         interpreter (for_line + 1)
         else interpreter (n + 1)
-
-
-
-
-        
 
     NEXT (IDList ids) -> do
       --NEXT J, I
@@ -393,12 +380,6 @@ interpreter n = do
         ((i,l,v):_) -> do
           liftIO $ writeArray tab i (ConstExpr (v + 1))
           interpreter (l + 1)
-
-
-
-
-
-
 
     IF compExp e -> do
       bool <- eval_comp_expr env compExp
@@ -438,16 +419,13 @@ interpreter n = do
           (OneDArray arr) <- liftIO $ readArray (ar_table) i
           liftIO $ writeArray arr (toInt ix') (ConstExpr e')
       interpreter (n+1)
-          
-
 
     ASSIGNMENT (Var c) e2 -> do
       e <- liftIO $ (eval_expr env) e2
       liftIO $ writeArray tab c (ConstExpr e)
       interpreter (n+1)
 
-
-
+    -- FALL-THROUGH CASE
     a -> do
       liftIO $ putStrLn $ "could not match" ++ show a
       interpreter (n+1)
@@ -545,4 +523,5 @@ test_amazing =
   "160 Q=0:Z=0:X=INT(RND(1)*H+1)\n" ++
   "180 PRINT \":  \";\n"
 
+showProgram :: Traversable t => (t1 -> t String) -> t1 -> IO (t ())
 showProgram f string = sequence $ putStrLn <$> (f string)
